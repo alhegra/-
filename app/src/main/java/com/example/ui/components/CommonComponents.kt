@@ -59,7 +59,7 @@ fun MinyooTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Brand Logo & Text (MINYOO)
+            // Brand Logo & Text (لقمة - Lo2ma)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(end = 8.dp)
@@ -67,25 +67,30 @@ fun MinyooTopBar(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MinyooOrangePrimary)
                 ) {
                     Text(
-                        text = "M",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 16.sp
+                        text = "🍽️",
+                        fontSize = 18.sp
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "MINYOO",
-                    color = MinyooOrangePrimary,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
-                    letterSpacing = (-0.5).sp
-                )
+                Column {
+                    Text(
+                        text = "لقمة",
+                        color = MinyooOrangePrimary,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 18.sp
+                    )
+                    Text(
+                        text = "lo2ma.click",
+                        color = MinyooSlateLight,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.sp
+                    )
+                }
             }
 
             // Location Selector Pill

@@ -33,8 +33,10 @@ fun ProfileScreen(
     savedAddresses: List<Address>,
     onSavedAddressesClick: () -> Unit,
     onRoleSwitcherClick: () -> Unit,
+    onRestaurantPortalClick: () -> Unit = {},
     onSupportClick: () -> Unit,
-    onNotificationsClick: () -> Unit
+    onNotificationsClick: () -> Unit,
+    onLogoutClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -92,7 +94,7 @@ fun ProfileScreen(
                                 color = MinyooOrangeContainer
                             ) {
                                 Text(
-                                    text = "MINYOO PLUS ⭐",
+                                    text = "لقمة PLUS ⭐",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MinyooOrangeDark,
@@ -156,6 +158,70 @@ fun ProfileScreen(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Direct Restaurant Owner Screen Entry
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onRestaurantPortalClick() }
+                        .testTag("profile_restaurant_portal_entry")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MinyooOrangePrimary,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = "👨‍🍳", fontSize = 20.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "شاشة صاحب المطعم 🍽️",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFFEF4444)
+                                ) {
+                                    Text(
+                                        text = "الطلبات الجديدة",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "متابعة الطلبات الجديدة وتحديث المراحل بضغطة واحدة",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
@@ -222,6 +288,13 @@ fun ProfileScreen(
                     subtitle = "أعلى معايير حماية البيانات في مصر",
                     onClick = {}
                 )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.ExitToApp,
+                    title = "تسجيل الخروج وتبديل الحساب",
+                    subtitle = "العودة لشاشة الاختيار والتسجيل الأولى",
+                    onClick = onLogoutClick
+                )
             }
 
             // Version Footer
@@ -232,13 +305,13 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "MINYOO 🇪🇬 v1.0.0 Pro",
+                        text = "لقمة 🇪🇬 • lo2ma.click",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MinyooSlateMuted
+                        color = MinyooOrangePrimary
                     )
                     Text(
-                        text = "منصة طلب الطعام والتوصيل الأسرع في مصر",
+                        text = "منصة طلب وتوصيل الطعام الذكية في جمهورية مصر العربية",
                         style = MaterialTheme.typography.labelSmall,
                         color = MinyooSlateMuted
                     )

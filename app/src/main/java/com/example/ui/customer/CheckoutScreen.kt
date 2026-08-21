@@ -1,5 +1,6 @@
 package com.example.ui.customer
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,14 +33,18 @@ fun CheckoutScreen(
     subtotal: Double,
     deliveryFee: Double,
     discount: Double,
+    customerName: String = "أحمد مصطفى",
+    customerPhone: String = "01098765432",
     onBackClick: () -> Unit,
     onChangeAddressClick: () -> Unit,
-    onConfirmOrder: (paymentMethod: PaymentMethod, notes: String) -> Unit
+    onConfirmOrder: (paymentMethod: PaymentMethod, notes: String, paymobResult: PaymobPaymentResult?) -> Unit
 ) {
     var selectedPaymentMethod by remember { mutableStateOf(PaymentMethod.CASH_ON_DELIVERY) }
     var deliveryInstructions by remember { mutableStateOf(currentAddress.deliveryInstructions) }
     var selectedTip by remember { mutableStateOf(10.0) }
     var isPlacingOrder by remember { mutableStateOf(false) }
+    var showPaymobHostedCheckout by remember { mutableStateOf(false) }
+    var paymobErrorMessage by remember { mutableStateOf<String?>(null) }
 
     val serviceFee = 5.0
     val grandTotal = (subtotal + deliveryFee + serviceFee + selectedTip - discount).coerceAtLeast(0.0)
@@ -50,6 +55,29 @@ fun CheckoutScreen(
         "اترك الطلب مع أمن العمارة / البواب 🏢",
         "تسليم باليد مباشرة 🤝"
     )
+
+    // Paymob Fullscreen Hosted Checkout Screen
+    if (showPaymobHostedCheckout) {
+        PaymobHostedCheckoutScreen(
+            amount = grandTotal,
+            cartItems = cartItems,
+            customerName = customerName,
+            customerPhone = customerPhone,
+            onPaymentSuccess = { result ->
+                showPaymobHostedCheckout = false
+                isPlacingOrder = true
+                onConfirmOrder(PaymentMethod.ONLINE_CARD_PAYMOB, deliveryInstructions, result)
+            },
+            onPaymentFailed = { err ->
+                showPaymobHostedCheckout = false
+                paymobErrorMessage = "تعذر إتمام الدفع عبر Paymob: $err. يمكنك المحاولة مرة أخرى أو اختيار الدفع عند الاستلام."
+            },
+            onCancel = {
+                showPaymobHostedCheckout = false
+            }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -90,6 +118,53 @@ fun CheckoutScreen(
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
+            // Paymob Failure Error Banner if any
+            if (paymobErrorMessage != null) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFFFEBEE),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = Color(0xFFDC2626)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "تنبيه في عملية الدفع",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = paymobErrorMessage ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFB91C1C)
+                                )
+                            }
+                            IconButton(onClick = { paymobErrorMessage = null }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "إغلاق",
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // 1. Delivery Address Card
             item {
                 Card(
@@ -208,7 +283,7 @@ fun CheckoutScreen(
                 }
             }
 
-            // 3. Payment Method (Egyptian Payment Ecosystem)
+            // 3. Payment Method Choice (Primary Options: COD vs Paymob Online Card)
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
@@ -219,69 +294,190 @@ fun CheckoutScreen(
                         .border(1.dp, MinyooCardBorder, RoundedCornerShape(18.dp))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "طريقة الدفع المناسبة لك 💳",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        PaymentMethod.values().forEach { method ->
-                            val isSelected = selectedPaymentMethod == method
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "طريقة الدفع 💳",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) MinyooOrangeContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { selectedPaymentMethod = method }
-                                    .border(
-                                        1.dp,
-                                        if (isSelected) MinyooOrangePrimary else Color.Transparent,
-                                        RoundedCornerShape(12.dp)
-                                    )
-                                    .testTag("payment_method_${method.name}")
+                                shape = RoundedCornerShape(6.dp),
+                                color = MinyooGreenLight
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Text(
+                                    text = "بوابة دفع آمنة 100%",
+                                    color = MinyooGreenDark,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Option 1: Cash on Delivery (الدفع عند الاستلام)
+                        val isCod = selectedPaymentMethod == PaymentMethod.CASH_ON_DELIVERY
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isCod) MinyooOrangeContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { selectedPaymentMethod = PaymentMethod.CASH_ON_DELIVERY }
+                                .border(
+                                    1.5.dp,
+                                    if (isCod) MinyooOrangePrimary else Color.Transparent,
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .testTag("payment_method_COD")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "💵", fontSize = 26.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = when (method) {
-                                            PaymentMethod.CASH_ON_DELIVERY -> "💵"
-                                            PaymentMethod.VODAFONE_CASH -> "📱"
-                                            PaymentMethod.INSTAPAY -> "⚡"
-                                            PaymentMethod.CREDIT_CARD -> "💳"
-                                        },
-                                        fontSize = 24.sp
+                                        text = "الدفع عند الاستلام (كاش)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isCod) MinyooOrangeDark else MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = method.titleAr,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) MinyooOrangeDark else MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = when (method) {
-                                                PaymentMethod.CASH_ON_DELIVERY -> "ادفع نقداً عند استلام الأكل السخن من الكابتن"
-                                                PaymentMethod.VODAFONE_CASH -> "تحويل فودافون كاش / أورنج كاش / وي باي فوراً"
-                                                PaymentMethod.INSTAPAY -> "الدفع اللحظي السريع عبر تطبيق InstaPay مصر"
-                                                PaymentMethod.CREDIT_CARD -> "فيزا أو ماستركارد مشفرة بأعلى معايير الأمان"
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MinyooSlateLight
-                                        )
-                                    }
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = null,
-                                        colors = RadioButtonDefaults.colors(selectedColor = MinyooOrangePrimary)
+                                    Text(
+                                        text = "ادفع نقداً لمندوب التوصيل عند استلام الطلب على باب البيت",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MinyooSlateLight
                                     )
                                 }
+                                RadioButton(
+                                    selected = isCod,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = MinyooOrangePrimary)
+                                )
+                            }
+                        }
+
+                        // Option 2: Paymob Hosted Checkout (الدفع أونلاين بالفيزا)
+                        val isOnlineCard = selectedPaymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || selectedPaymentMethod == PaymentMethod.CREDIT_CARD
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isOnlineCard) MinyooOrangeContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { selectedPaymentMethod = PaymentMethod.ONLINE_CARD_PAYMOB }
+                                .border(
+                                    1.5.dp,
+                                    if (isOnlineCard) MinyooOrangePrimary else Color.Transparent,
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .testTag("payment_method_PAYMOB")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "💳", fontSize = 26.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "الدفع أونلاين بالفيزا / ماستركارد",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isOnlineCard) MinyooOrangeDark else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(0xFF0A1E3F)
+                                        ) {
+                                            Text(
+                                                text = "Paymob 🇪🇬",
+                                                color = Color.White,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "صفحة دفع آمنة (Paymob Hosted Checkout) - لا يتم تخزين أي بيانات كارت في التطبيق",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MinyooSlateLight
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    // Supported card badges
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Surface(shape = RoundedCornerShape(3.dp), color = Color(0xFFE2E8F0)) {
+                                            Text("Visa", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1F71), modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        }
+                                        Surface(shape = RoundedCornerShape(3.dp), color = Color(0xFFE2E8F0)) {
+                                            Text("Mastercard", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFEB001B), modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        }
+                                        Surface(shape = RoundedCornerShape(3.dp), color = Color(0xFFE2E8F0)) {
+                                            Text("ميزة 🇪🇬", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF006837), modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        }
+                                    }
+                                }
+                                RadioButton(
+                                    selected = isOnlineCard,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = MinyooOrangePrimary)
+                                )
+                            }
+                        }
+
+                        // Option 3: Smart Wallets (Vodafone Cash / InstaPay)
+                        val isWallet = selectedPaymentMethod == PaymentMethod.VODAFONE_CASH
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isWallet) MinyooOrangeContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { selectedPaymentMethod = PaymentMethod.VODAFONE_CASH }
+                                .border(
+                                    1.5.dp,
+                                    if (isWallet) MinyooOrangePrimary else Color.Transparent,
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .testTag("payment_method_WALLET")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "📱", fontSize = 26.sp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "فودافون كاش / إنستاباي InstaPay",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isWallet) MinyooOrangeDark else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "تحويل سريع عبر المحافظ الإلكترونية المصرية أو InstaPay",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MinyooSlateLight
+                                    )
+                                }
+                                RadioButton(
+                                    selected = isWallet,
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = MinyooOrangePrimary)
+                                )
                             }
                         }
                     }
@@ -442,12 +638,23 @@ fun CheckoutScreen(
                     .navigationBarsPadding()
                     .padding(16.dp)
             ) {
+                val isPaymobSelected = selectedPaymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || selectedPaymentMethod == PaymentMethod.CREDIT_CARD
+
                 Button(
                     onClick = {
-                        isPlacingOrder = true
-                        onConfirmOrder(selectedPaymentMethod, deliveryInstructions)
+                        paymobErrorMessage = null
+                        if (isPaymobSelected) {
+                            // Open Paymob Hosted Checkout
+                            showPaymobHostedCheckout = true
+                        } else {
+                            // Direct Order Placement for Cash on Delivery / Wallet
+                            isPlacingOrder = true
+                            onConfirmOrder(selectedPaymentMethod, deliveryInstructions, null)
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MinyooOrangePrimary),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPaymobSelected) Color(0xFF0A1E3F) else MinyooOrangePrimary
+                    ),
                     shape = RoundedCornerShape(16.dp),
                     enabled = !isPlacingOrder,
                     modifier = Modifier
@@ -458,14 +665,34 @@ fun CheckoutScreen(
                     if (isPlacingOrder) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     } else {
-                        Text(
-                            text = "تأكيد الطلب الآن 🚀 (${grandTotal.toInt()} ج)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (isPaymobSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "المتابعة لدفع Paymob 🔒 (${grandTotal.toInt()} ج)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = "تأكيد الطلب الآن 🚀 (${grandTotal.toInt()} ج)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+

@@ -7,13 +7,44 @@ enum class UserRole(val titleAr: String, val titleEn: String) {
     ADMIN("لوحة الإدارة", "Admin Dashboard")
 }
 
+enum class RestaurantStatus(val titleAr: String, val colorCode: Long) {
+    PENDING("قيد المراجعة والتدقيق ⏳", 0xFFF59E0B),
+    APPROVED("معتمد ومفعّل ✅", 0xFF16A34A),
+    REJECTED("مرفوض ❌", 0xFFEF4444)
+}
+
+data class CustomerRegistrationData(
+    val name: String,
+    val phone: String,
+    val city: String,
+    val password: String = "123456"
+)
+
+data class RestaurantRegistrationData(
+    val restaurantName: String,
+    val phone: String,
+    val cityArea: String,
+    val cuisine: String = "أطباق شرقية وسريعة",
+    val logoIcon: String = "🍔",
+    val minOrder: Double = 50.0,
+    val deliveryTimeMinutes: Int = 30,
+    val status: RestaurantStatus = RestaurantStatus.PENDING,
+    val password: String = "123456"
+)
+
+sealed class LoginResult {
+    data class Success(val user: User) : LoginResult()
+    data class Error(val message: String) : LoginResult()
+}
+
 data class User(
     val id: String = "cust_1",
     val name: String = "أحمد مصطفى",
     val phone: String = "01098765432",
     val email: String = "ahmed@example.com",
     val role: UserRole = UserRole.CUSTOMER,
-    val selectedAddressId: String = "addr_1"
+    val selectedAddressId: String = "addr_1",
+    val registeredRestaurant: RestaurantRegistrationData? = null
 )
 
 data class Address(
@@ -114,11 +145,23 @@ data class CartItem(
 }
 
 enum class PaymentMethod(val titleAr: String, val titleEn: String, val iconName: String) {
-    CASH_ON_DELIVERY("كاش عند الاستلام", "Cash on Delivery", "cash"),
+    CASH_ON_DELIVERY("الدفع عند الاستلام (كاش)", "Cash on Delivery", "cash"),
+    ONLINE_CARD_PAYMOB("الدفع أونلاين بالفيزا / ماستركارد (Paymob)", "Pay Online via Card (Paymob)", "card"),
     VODAFONE_CASH("محفظة إلكترونية (فودافون كاش / أورنج)", "Smart Wallet / Vodafone Cash", "wallet"),
     INSTAPAY("إنستاباي InstaPay", "InstaPay", "bank"),
     CREDIT_CARD("بطاقة بنكية (فيزا / ماستركارد)", "Credit / Debit Card", "card")
 }
+
+data class PaymobPaymentResult(
+    val isSuccess: Boolean,
+    val transactionId: String? = null,
+    val authCode: String? = null,
+    val maskedPan: String? = null,
+    val cardScheme: String? = null,
+    val errorMessage: String? = null,
+    val amount: Double = 0.0,
+    val paymentDate: String = ""
+)
 
 enum class OrderStatus(val titleAr: String, val descriptionAr: String, val stepIndex: Int) {
     PLACED("تم استلام الطلب", "طلبك وصل وجاري إرساله للمطعم", 0),
@@ -156,6 +199,8 @@ data class Order(
     val total: Double,
     val paymentMethod: PaymentMethod,
     val paymentStatus: String = "PAID_OR_COD",
+    val paymobTransactionId: String? = null,
+    val maskedCardNumber: String? = null,
     val status: OrderStatus = OrderStatus.PLACED,
     val courierName: String = "كابتن محمود علي",
     val courierPhone: String = "01122334455",

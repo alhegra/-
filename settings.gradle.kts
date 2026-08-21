@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "MINYOO"
+rootProject.name = "لقمة"
 
 include(":app")

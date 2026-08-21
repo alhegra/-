@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 
 @Database(
     entities = [
+        UserAccountEntity::class,
         AddressEntity::class,
         OrderEntity::class,
         FavoriteEntity::class,
@@ -19,6 +20,7 @@ import androidx.room.TypeConverters
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun userAccountDao(): UserAccountDao
     abstract fun addressDao(): AddressDao
     abstract fun orderDao(): OrderDao
     abstract fun favoriteDao(): FavoriteDao

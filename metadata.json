@@ -1,6 +1,6 @@
 {
-  "name": "MINYOO",
-  "description": "منصة طلب الطعام والتوصيل الأولى والذكية في مصر - MINYOO Food Delivery & Marketplace",
+  "name": "لقمة",
+  "description": "منصة طلب وتوصيل الطعام الذكية في مصر - لقمة (lo2ma.click)",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

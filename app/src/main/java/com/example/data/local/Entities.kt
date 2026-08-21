@@ -11,8 +11,29 @@ import com.example.data.model.OrderStatus
 import com.example.data.model.PaymentMethod
 import com.example.data.model.Product
 import com.example.data.model.Restaurant
+import com.example.data.model.RestaurantStatus
 import com.example.data.model.Review
 import com.example.data.model.SupportTicket
+import com.example.data.model.UserRole
+
+@Entity(tableName = "user_accounts")
+data class UserAccountEntity(
+    @PrimaryKey val id: String,
+    val identifier: String, // phone or email (lowercased)
+    val name: String,
+    val phone: String,
+    val email: String,
+    val passwordHash: String,
+    val role: UserRole,
+    val restaurantName: String? = null,
+    val restaurantStatus: RestaurantStatus? = null,
+    val cityArea: String = "القاهرة",
+    val cuisine: String? = null,
+    val logoIcon: String? = null,
+    val minOrder: Double = 50.0,
+    val deliveryTimeMinutes: Int = 30,
+    val createdAt: Long = System.currentTimeMillis()
+)
 
 @Entity(tableName = "addresses")
 data class AddressEntity(
@@ -85,6 +106,8 @@ data class OrderEntity(
     val total: Double,
     val paymentMethod: PaymentMethod,
     val paymentStatus: String,
+    val paymobTransactionId: String? = null,
+    val maskedCardNumber: String? = null,
     val status: OrderStatus,
     val courierName: String,
     val courierPhone: String,
@@ -111,6 +134,8 @@ data class OrderEntity(
         total = total,
         paymentMethod = paymentMethod,
         paymentStatus = paymentStatus,
+        paymobTransactionId = paymobTransactionId,
+        maskedCardNumber = maskedCardNumber,
         status = status,
         courierName = courierName,
         courierPhone = courierPhone,

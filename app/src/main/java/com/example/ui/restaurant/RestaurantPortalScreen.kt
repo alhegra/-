@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -168,113 +169,25 @@ fun RestaurantPortalScreen(
                     }
                 }
             } else {
+                val context = LocalContext.current
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(top = 14.dp, bottom = 80.dp)
                 ) {
-                    items(activeOrders) { order ->
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .border(1.dp, MinyooCardBorder, RoundedCornerShape(18.dp))
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "طلب ${order.orderNumber}",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "العميل: ${order.customerName} (${order.customerPhone})",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MinyooSlateLight
-                                        )
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MinyooOrangeContainer
-                                    ) {
-                                        Text(
-                                            text = order.status.titleAr,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MinyooOrangeDark,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                order.items.forEach { item ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 2.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "• ${item.quantity}x ${item.product.name} ${if (item.selectedModifiers.isNotEmpty()) "(${item.selectedModifiers.joinToString { it.optionName }})" else ""}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Text("${item.totalPrice.toInt()} ج", fontWeight = FontWeight.Bold)
-                                    }
-                                    if (item.notes.isNotBlank()) {
-                                        Text(
-                                            text = "  ⚠️ ملاحظة الشيف: ${item.notes}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MinyooOrangeDark
-                                        )
-                                    }
-                                }
-
-                                Divider(modifier = Modifier.padding(vertical = 10.dp), color = MinyooBorder)
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "الإجمالي: ${order.total.toInt()} ج",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MinyooOrangePrimary
-                                    )
-
-                                    Button(
-                                        onClick = { onAdvanceOrderStatus(order.id) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MinyooOrangePrimary),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.testTag("rest_advance_btn_${order.id}")
-                                    ) {
-                                        Text(
-                                            text = when (order.status) {
-                                                OrderStatus.PLACED -> "قبول والبدء في التحضير 🍳"
-                                                OrderStatus.CONFIRMED -> "جاري الطهي والتحضير 🔥"
-                                                OrderStatus.PREPARING -> "تم التجهيز وجاهز للاستلام 📦"
-                                                else -> "تحديث حالة الطلب ⏩"
-                                            },
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.labelMedium
-                                        )
-                                    }
-                                }
+                    items(activeOrders, key = { it.id }) { order ->
+                        RestaurantOrderItemCard(
+                            order = order,
+                            onAdvanceStatus = { onAdvanceOrderStatus(order.id) },
+                            onCallCustomer = {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${order.customerPhone}"))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
                             }
-                        }
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }

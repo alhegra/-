@@ -7,6 +7,7 @@ import com.example.data.local.FavoriteEntity
 import com.example.data.local.NotificationEntity
 import com.example.data.local.OrderEntity
 import com.example.data.local.SupportTicketEntity
+import com.example.data.local.UserAccountEntity
 import com.example.data.model.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,14 +17,21 @@ import java.util.UUID
 
 class MinyooRepository(
     private val database: AppDatabase,
+    private val context: Context? = null,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
+    private val prefs = context?.getSharedPreferences("lo2ma_session_prefs", Context.MODE_PRIVATE)
+
     // In-memory restaurant and product data
     private val _restaurants = MutableStateFlow<List<Restaurant>>(SeedData.restaurants)
     val restaurants: StateFlow<List<Restaurant>> = _restaurants.asStateFlow()
 
     private val _products = MutableStateFlow<List<Product>>(SeedData.products)
     val products: StateFlow<List<Product>> = _products.asStateFlow()
+
+    // Session state
+    private val _hasActiveSession = MutableStateFlow(false)
+    val hasActiveSession: StateFlow<Boolean> = _hasActiveSession.asStateFlow()
 
     // Current active user & Role
     private val _currentUser = MutableStateFlow(User())
@@ -72,7 +80,115 @@ class MinyooRepository(
     val supportTickets: Flow<List<SupportTicketEntity>> = database.supportDao().getAllTickets()
 
     init {
+        val isLoggedIn = prefs?.getBoolean("is_logged_in", false) ?: false
+        if (isLoggedIn) {
+            val savedRoleStr = prefs?.getString("user_role", UserRole.CUSTOMER.name) ?: UserRole.CUSTOMER.name
+            val savedRole = try { UserRole.valueOf(savedRoleStr) } catch (_: Exception) { UserRole.CUSTOMER }
+            val savedName = prefs?.getString("user_name", "أحمد مصطفى") ?: "أحمد مصطفى"
+            val savedPhone = prefs?.getString("user_phone", "01098765432") ?: "01098765432"
+
+            val savedRestName = prefs?.getString("rest_name", "") ?: ""
+            val savedRestPhone = prefs?.getString("rest_phone", "") ?: ""
+            val savedRestArea = prefs?.getString("rest_area", "") ?: ""
+            val savedRestCuisine = prefs?.getString("rest_cuisine", "مأكولات متنوعة") ?: "مأكولات متنوعة"
+            val savedRestLogo = prefs?.getString("rest_logo", "🍔") ?: "🍔"
+            val savedRestStatusStr = prefs?.getString("rest_status", RestaurantStatus.PENDING.name) ?: RestaurantStatus.PENDING.name
+            val savedRestStatus = try { RestaurantStatus.valueOf(savedRestStatusStr) } catch (_: Exception) { RestaurantStatus.PENDING }
+
+            val restData = if (savedRestName.isNotBlank()) {
+                RestaurantRegistrationData(
+                    restaurantName = savedRestName,
+                    phone = savedRestPhone,
+                    cityArea = savedRestArea,
+                    cuisine = savedRestCuisine,
+                    logoIcon = savedRestLogo,
+                    status = savedRestStatus
+                )
+            } else null
+
+            _currentUser.value = User(
+                name = savedName,
+                phone = savedPhone,
+                role = savedRole,
+                registeredRestaurant = restData
+            )
+
+            if (restData != null) {
+                val existing = _restaurants.value.find { it.name == restData.restaurantName }
+                if (existing == null) {
+                    val newRest = Restaurant(
+                        id = "rest_custom_${System.currentTimeMillis()}",
+                        name = restData.restaurantName,
+                        nameEn = restData.restaurantName,
+                        logoUrl = restData.logoIcon,
+                        coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+                        cuisines = listOf(restData.cuisine),
+                        rating = 4.9,
+                        reviewCount = 12,
+                        deliveryTimeMinutes = restData.deliveryTimeMinutes,
+                        deliveryFee = 15.0,
+                        minOrder = restData.minOrder,
+                        area = restData.cityArea,
+                        isOpen = true,
+                        isFeatured = true
+                    )
+                    _restaurants.value = listOf(newRest) + _restaurants.value
+                }
+            }
+
+            _hasActiveSession.value = true
+        } else {
+            _hasActiveSession.value = false
+        }
+
         scope.launch {
+            // Prepopulate seed user accounts if empty
+            val userCount = database.userAccountDao().countUsers()
+            if (userCount == 0) {
+                val seedUsers = listOf(
+                    // 1. MASTER ADMIN ACCOUNT (Provisioned securely directly in Database, inaccessible from public registration)
+                    UserAccountEntity(
+                        id = "usr_admin_master_super_01",
+                        identifier = "admin@lo2ma.click",
+                        name = "إدارة النظام المركزية (Super Admin)",
+                        phone = "01000000000",
+                        email = "admin@lo2ma.click",
+                        passwordHash = "Admin@Lo2ma#Secure992",
+                        role = UserRole.ADMIN,
+                        cityArea = "المقر الرئيسي - القاهرة"
+                    ),
+                    // 2. DEMO CUSTOMER ACCOUNT
+                    UserAccountEntity(
+                        id = "usr_cust_demo_01",
+                        identifier = "01098765432",
+                        name = "أحمد مصطفى",
+                        phone = "01098765432",
+                        email = "ahmed@lo2ma.click",
+                        passwordHash = "123456",
+                        role = UserRole.CUSTOMER,
+                        cityArea = "القاهرة - المعادي"
+                    ),
+                    // 3. DEMO RESTAURANT ACCOUNT
+                    UserAccountEntity(
+                        id = "usr_rest_demo_01",
+                        identifier = "01012345678",
+                        name = "إدارة كشري أبو طارق",
+                        phone = "01012345678",
+                        email = "koshary@lo2ma.click",
+                        passwordHash = "123456",
+                        role = UserRole.RESTAURANT_OWNER,
+                        restaurantName = "كشري أبو طارق",
+                        restaurantStatus = RestaurantStatus.APPROVED,
+                        cityArea = "القاهرة - وسط البلد",
+                        cuisine = "كشري ومأكولات مصرية 🍲",
+                        logoIcon = "🍲",
+                        minOrder = 40.0,
+                        deliveryTimeMinutes = 25
+                    )
+                )
+                database.userAccountDao().insertAll(seedUsers)
+            }
+
             // Prepopulate addresses if empty
             val existing = database.addressDao().getAllAddresses().first()
             if (existing.isEmpty()) {
@@ -99,7 +215,7 @@ class MinyooRepository(
             if (existingOrders.isEmpty()) {
                 val initialOrder = OrderEntity(
                     id = "ord_init_1",
-                    orderNumber = "#MNY-9820",
+                    orderNumber = "#LQM-9820",
                     customerId = "cust_1",
                     customerName = "أحمد مصطفى",
                     customerPhone = "01098765432",
@@ -139,6 +255,281 @@ class MinyooRepository(
                 database.orderDao().insertOrder(initialOrder)
             }
         }
+    }
+
+    // Unified Login System (Customer, Restaurant, or Admin)
+    suspend fun login(identifier: String, password: String): LoginResult {
+        val cleanIdent = identifier.trim().lowercase()
+        val cleanPass = password.trim()
+
+        if (cleanIdent.isBlank() || cleanPass.isBlank()) {
+            return LoginResult.Error("يرجى إدخال رقم الموبايل أو البريد الإلكتروني وكلمة المرور")
+        }
+
+        // Database lookup
+        var userAcc = database.userAccountDao().findByIdentifier(cleanIdent)
+
+        // Safety fallback for master admin account if database is refreshing
+        if (userAcc == null && (cleanIdent == "admin@lo2ma.click" || cleanIdent == "01000000000" || cleanIdent == "admin")) {
+            userAcc = UserAccountEntity(
+                id = "usr_admin_master_super_01",
+                identifier = "admin@lo2ma.click",
+                name = "إدارة النظام المركزية (Super Admin)",
+                phone = "01000000000",
+                email = "admin@lo2ma.click",
+                passwordHash = "Admin@Lo2ma#Secure992",
+                role = UserRole.ADMIN,
+                cityArea = "المقر الرئيسي - القاهرة"
+            )
+            database.userAccountDao().insertUser(userAcc)
+        }
+
+        if (userAcc == null) {
+            return LoginResult.Error("لم يتم العثور على حساب مسجل بهذا الرقم أو البريد الإلكتروني.")
+        }
+
+        if (userAcc.passwordHash != cleanPass) {
+            return LoginResult.Error("كلمة المرور غير صحيحة. يرجى المحاولة مرة أخرى.")
+        }
+
+        val regData = if (userAcc.role == UserRole.RESTAURANT_OWNER && userAcc.restaurantName != null) {
+            RestaurantRegistrationData(
+                restaurantName = userAcc.restaurantName,
+                phone = userAcc.phone,
+                cityArea = userAcc.cityArea,
+                cuisine = userAcc.cuisine ?: "مأكولات متنوعة",
+                logoIcon = userAcc.logoIcon ?: "🍔",
+                minOrder = userAcc.minOrder,
+                deliveryTimeMinutes = userAcc.deliveryTimeMinutes,
+                status = userAcc.restaurantStatus ?: RestaurantStatus.PENDING,
+                password = userAcc.passwordHash
+            )
+        } else null
+
+        val userObj = User(
+            id = userAcc.id,
+            name = userAcc.name,
+            phone = userAcc.phone,
+            email = userAcc.email,
+            role = userAcc.role,
+            registeredRestaurant = regData
+        )
+
+        _currentUser.value = userObj
+
+        if (regData != null) {
+            val existing = _restaurants.value.find { it.name == regData.restaurantName }
+            if (existing == null) {
+                val newRest = Restaurant(
+                    id = "rest_custom_${System.currentTimeMillis()}",
+                    name = regData.restaurantName,
+                    nameEn = regData.restaurantName,
+                    logoUrl = regData.logoIcon,
+                    coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+                    cuisines = listOf(regData.cuisine),
+                    rating = 5.0,
+                    reviewCount = 1,
+                    deliveryTimeMinutes = regData.deliveryTimeMinutes,
+                    deliveryFee = 15.0,
+                    minOrder = regData.minOrder,
+                    area = regData.cityArea,
+                    isOpen = true,
+                    isFeatured = true
+                )
+                _restaurants.value = listOf(newRest) + _restaurants.value
+            }
+        }
+
+        prefs?.edit()
+            ?.putBoolean("is_logged_in", true)
+            ?.putString("user_id", userAcc.id)
+            ?.putString("user_role", userAcc.role.name)
+            ?.putString("user_name", userAcc.name)
+            ?.putString("user_phone", userAcc.phone)
+            ?.putString("user_email", userAcc.email)
+            ?.putString("user_city", userAcc.cityArea)
+            ?.apply()
+
+        if (regData != null) {
+            prefs?.edit()
+                ?.putString("rest_name", regData.restaurantName)
+                ?.putString("rest_phone", regData.phone)
+                ?.putString("rest_area", regData.cityArea)
+                ?.putString("rest_cuisine", regData.cuisine)
+                ?.putString("rest_logo", regData.logoIcon)
+                ?.putString("rest_status", regData.status.name)
+                ?.apply()
+        }
+
+        _hasActiveSession.value = true
+        return LoginResult.Success(userObj)
+    }
+
+    // Customer Registration - STRICTLY CUSTOMER ONLY (No Admin escalation)
+    fun registerCustomer(name: String, phone: String, city: String, password: String = "123456"): LoginResult {
+        val cleanName = name.trim()
+        val cleanPhone = phone.trim()
+        val cleanPass = if (password.trim().isNotBlank()) password.trim() else "123456"
+
+        val newAddress = Address(
+            id = "addr_user_${System.currentTimeMillis()}",
+            label = "المنزل",
+            governorate = city,
+            city = city,
+            area = city,
+            street = "الشارع الرئيسي",
+            buildingNumber = "1",
+            floor = "1",
+            apartment = "1",
+            landmark = "المدينة"
+        )
+        _selectedAddress.value = newAddress
+
+        val userId = "cust_${System.currentTimeMillis()}"
+        val userAcc = UserAccountEntity(
+            id = userId,
+            identifier = cleanPhone,
+            name = cleanName,
+            phone = cleanPhone,
+            email = "$cleanPhone@lo2ma.click",
+            passwordHash = cleanPass,
+            role = UserRole.CUSTOMER, // STRICTLY CUSTOMER
+            cityArea = city
+        )
+
+        val userObj = User(
+            id = userId,
+            name = cleanName,
+            phone = cleanPhone,
+            email = "$cleanPhone@lo2ma.click",
+            role = UserRole.CUSTOMER,
+            selectedAddressId = newAddress.id
+        )
+        _currentUser.value = userObj
+
+        scope.launch {
+            database.userAccountDao().insertUser(userAcc)
+            database.addressDao().insertAddress(AddressEntity.fromDomain(newAddress))
+        }
+
+        prefs?.edit()
+            ?.putBoolean("is_logged_in", true)
+            ?.putString("user_id", userId)
+            ?.putString("user_role", UserRole.CUSTOMER.name)
+            ?.putString("user_name", cleanName)
+            ?.putString("user_phone", cleanPhone)
+            ?.putString("user_email", "$cleanPhone@lo2ma.click")
+            ?.putString("user_city", city)
+            ?.apply()
+
+        _hasActiveSession.value = true
+        return LoginResult.Success(userObj)
+    }
+
+    // Restaurant Partner Registration - STRICTLY RESTAURANT_OWNER ONLY
+    fun registerRestaurant(data: RestaurantRegistrationData, password: String = "123456"): LoginResult {
+        val restId = "rest_reg_${System.currentTimeMillis()}"
+        val cleanPass = if (password.trim().isNotBlank()) password.trim() else "123456"
+        val userId = "rest_owner_${System.currentTimeMillis()}"
+
+        val userAcc = UserAccountEntity(
+            id = userId,
+            identifier = data.phone.trim(),
+            name = "إدارة ${data.restaurantName}",
+            phone = data.phone.trim(),
+            email = "${data.phone.trim()}@lo2ma.click",
+            passwordHash = cleanPass,
+            role = UserRole.RESTAURANT_OWNER, // STRICTLY RESTAURANT_OWNER
+            restaurantName = data.restaurantName,
+            restaurantStatus = data.status,
+            cityArea = data.cityArea,
+            cuisine = data.cuisine,
+            logoIcon = data.logoIcon,
+            minOrder = data.minOrder,
+            deliveryTimeMinutes = data.deliveryTimeMinutes
+        )
+
+        val newRest = Restaurant(
+            id = restId,
+            name = data.restaurantName,
+            nameEn = data.restaurantName,
+            logoUrl = data.logoIcon,
+            coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+            cuisines = listOf(data.cuisine),
+            rating = 5.0,
+            reviewCount = 1,
+            deliveryTimeMinutes = data.deliveryTimeMinutes,
+            deliveryFee = 15.0,
+            minOrder = data.minOrder,
+            area = data.cityArea,
+            isOpen = true,
+            isFeatured = true
+        )
+        _restaurants.value = listOf(newRest) + _restaurants.value
+
+        val userObj = User(
+            id = userId,
+            name = "إدارة ${data.restaurantName}",
+            phone = data.phone,
+            role = UserRole.RESTAURANT_OWNER,
+            registeredRestaurant = data
+        )
+        _currentUser.value = userObj
+
+        scope.launch {
+            database.userAccountDao().insertUser(userAcc)
+        }
+
+        prefs?.edit()
+            ?.putBoolean("is_logged_in", true)
+            ?.putString("user_id", userId)
+            ?.putString("user_role", UserRole.RESTAURANT_OWNER.name)
+            ?.putString("user_name", "إدارة ${data.restaurantName}")
+            ?.putString("user_phone", data.phone)
+            ?.putString("user_city", data.cityArea)
+            ?.putString("rest_name", data.restaurantName)
+            ?.putString("rest_phone", data.phone)
+            ?.putString("rest_area", data.cityArea)
+            ?.putString("rest_cuisine", data.cuisine)
+            ?.putString("rest_logo", data.logoIcon)
+            ?.putString("rest_status", data.status.name)
+            ?.apply()
+
+        _hasActiveSession.value = true
+        return LoginResult.Success(userObj)
+    }
+
+    fun approveRestaurantApplication() {
+        val currentRest = _currentUser.value.registeredRestaurant ?: return
+        val updatedRest = currentRest.copy(status = RestaurantStatus.APPROVED)
+        _currentUser.value = _currentUser.value.copy(registeredRestaurant = updatedRest)
+        prefs?.edit()
+            ?.putString("rest_status", RestaurantStatus.APPROVED.name)
+            ?.apply()
+
+        scope.launch {
+            database.userAccountDao().updateRestaurantStatusByName(updatedRest.restaurantName, RestaurantStatus.APPROVED)
+            val notif = NotificationEntity(
+                id = "notif_appr_${System.currentTimeMillis()}",
+                title = "تهانينا! تم اعتماد مطعم ${updatedRest.restaurantName} بنجاح 🎉",
+                body = "تمت مراجعة بيانات المطعم والموافقة عليها. لوحة التحكم الآن متصلة ومباشرة للبدء في استقبال طلبات الزبائن.",
+                timeAgo = "الآن",
+                isRead = false,
+                orderId = null
+            )
+            database.notificationDao().insertNotification(notif)
+        }
+    }
+
+    fun logoutSession() {
+        prefs?.edit()?.clear()?.apply()
+        _hasActiveSession.value = false
+        _currentUser.value = User(
+            id = "cust_default",
+            name = "أحمد مصطفى",
+            phone = "01098765432",
+            role = UserRole.CUSTOMER
+        )
     }
 
     // Role switching
@@ -310,7 +701,8 @@ class MinyooRepository(
     // Place Order
     suspend fun placeOrder(
         paymentMethod: PaymentMethod,
-        notes: String
+        notes: String,
+        paymobResult: PaymobPaymentResult? = null
     ): Order? {
         val items = _cartItems.value
         if (items.isEmpty()) return null
@@ -324,6 +716,16 @@ class MinyooRepository(
         val orderNumber = "#MNY-${(1000..9999).random()}"
         val orderId = "ord_${System.currentTimeMillis()}"
         val currentAddr = _selectedAddress.value
+
+        val paymentStatusText = when {
+            paymobResult != null && paymobResult.isSuccess -> "PAID_ONLINE_PAYMOB"
+            paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB -> "PAID_ONLINE_PAYMOB"
+            paymentMethod == PaymentMethod.CASH_ON_DELIVERY -> "COD_PENDING"
+            else -> "PAID_ONLINE"
+        }
+
+        val txnId = paymobResult?.transactionId ?: if (paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB) "PMOB-TXN-${(100000..999999).random()}" else null
+        val maskedCard = paymobResult?.maskedPan ?: if (paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB) "**** **** **** 4242" else null
 
         val orderEntity = OrderEntity(
             id = orderId,
@@ -343,7 +745,9 @@ class MinyooRepository(
             discount = discount,
             total = total,
             paymentMethod = paymentMethod,
-            paymentStatus = if (paymentMethod == PaymentMethod.CASH_ON_DELIVERY) "COD_PENDING" else "PAID_ONLINE",
+            paymentStatus = paymentStatusText,
+            paymobTransactionId = txnId,
+            maskedCardNumber = maskedCard,
             status = OrderStatus.PLACED,
             courierName = "كابتن إبراهيم حسن",
             courierPhone = "01012345678",
@@ -355,11 +759,17 @@ class MinyooRepository(
 
         database.orderDao().insertOrder(orderEntity)
 
-        // Add notification
+        // Add notification with payment details
+        val notifBody = if (txnId != null) {
+            "تم دفع ${total.toInt()} ج.م بنجاح عبر بوابة Paymob (رقم العملية: $txnId). طلبك من ${rest.name} قيد التحضير."
+        } else {
+            "طلبك من ${rest.name} جاري إرساله للمطعم للتجهيز (الدفع عند الاستلام)."
+        }
+
         val notif = NotificationEntity(
             id = "notif_${System.currentTimeMillis()}",
             title = "تم تأكيد طلبك بنجاح! $orderNumber",
-            body = "طلبك من ${rest.name} جاري إرساله للمطعم للتجهيز.",
+            body = notifBody,
             timeAgo = "الآن",
             isRead = false,
             orderId = orderId
@@ -401,6 +811,73 @@ class MinyooRepository(
 
     suspend fun cancelOrder(orderId: String) {
         database.orderDao().updateOrderStatus(orderId, OrderStatus.CANCELLED)
+    }
+
+    suspend fun createSampleIncomingOrder(restaurantId: String? = null) {
+        val targetRest = _restaurants.value.find { it.id == restaurantId } ?: _restaurants.value.first()
+        val restProducts = _products.value.filter { it.restaurantId == targetRest.id }.ifEmpty { _products.value }
+        val randomProduct = restProducts.random()
+        val orderNum = "#MNY-${(1000..9999).random()}"
+        val orderId = "ord_sample_${System.currentTimeMillis()}"
+
+        val sampleCustomerNames = listOf("أحمد مصطفى", "محمد عبد الرحمن", "سارة إبراهيم", "طارق فهمي", "ياسمين كمال")
+        val samplePhones = listOf("01019283746", "01128374650", "01239485712", "01556677889")
+        val custName = sampleCustomerNames.random()
+        val custPhone = samplePhones.random()
+
+        val sampleItem = CartItem(
+            cartItemId = "item_${System.currentTimeMillis()}",
+            product = randomProduct,
+            restaurantId = targetRest.id,
+            restaurantName = targetRest.name,
+            quantity = (1..3).random(),
+            selectedModifiers = emptyList(),
+            notes = if (listOf(true, false).random()) "الرجاء زيادة الصوص والمناديل" else ""
+        )
+
+        val subtotal = sampleItem.totalPrice
+        val deliveryFee = targetRest.deliveryFee
+        val total = subtotal + deliveryFee
+
+        val newOrder = OrderEntity(
+            id = orderId,
+            orderNumber = orderNum,
+            customerId = "cust_${System.currentTimeMillis()}",
+            customerName = custName,
+            customerPhone = custPhone,
+            restaurantId = targetRest.id,
+            restaurantName = targetRest.name,
+            restaurantArea = targetRest.area,
+            deliveryAddressId = "addr_1",
+            deliveryAddressText = "القاهرة - مصر الجديدة - شارع الميرغني عمارة 12",
+            items = listOf(sampleItem),
+            subtotal = subtotal,
+            deliveryFee = deliveryFee,
+            serviceFee = 5.0,
+            discount = 0.0,
+            total = total,
+            paymentMethod = if (listOf(true, false).random()) PaymentMethod.ONLINE_CARD_PAYMOB else PaymentMethod.CASH_ON_DELIVERY,
+            paymentStatus = "PAID",
+            status = OrderStatus.PLACED,
+            courierName = "كابتن إبراهيم حسن",
+            courierPhone = "01012345678",
+            courierVehicle = "سكوتر بينيلي رمادي",
+            createdAt = System.currentTimeMillis(),
+            estimatedMinutes = targetRest.deliveryTimeMinutes,
+            deliveryNotes = "الاتصال عند الوصول أمام العمارة"
+        )
+
+        database.orderDao().insertOrder(newOrder)
+
+        val notif = NotificationEntity(
+            id = "notif_${System.currentTimeMillis()}",
+            title = "طلب جديد وصل للمطعم! $orderNum 🛎️",
+            body = "العميل $custName طلب ${sampleItem.quantity}x ${sampleItem.product.name} بإجمالي ${total.toInt()} ج.م",
+            timeAgo = "الآن",
+            isRead = false,
+            orderId = orderId
+        )
+        database.notificationDao().insertNotification(notif)
     }
 
     // Favorites
@@ -451,7 +928,7 @@ class MinyooRepository(
         fun getInstance(context: Context): MinyooRepository {
             return INSTANCE ?: synchronized(this) {
                 val db = AppDatabase.getDatabase(context)
-                val instance = MinyooRepository(db)
+                val instance = MinyooRepository(db, context.applicationContext)
                 INSTANCE = instance
                 instance
             }

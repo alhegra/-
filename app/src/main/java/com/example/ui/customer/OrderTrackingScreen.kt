@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Order
 import com.example.data.model.OrderStatus
+import com.example.data.model.PaymentMethod
 import com.example.ui.components.OrderStatusTimelineView
 import com.example.ui.theme.*
 
@@ -259,10 +260,59 @@ fun OrderTrackingScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("طريقة الدفع:", color = MinyooSlateLight)
-                            Text(order.paymentMethod.titleAr, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(order.paymentMethod.titleAr, fontWeight = FontWeight.Bold)
+                                if (order.paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || order.paymobTransactionId != null) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MinyooGreenLight
+                                    ) {
+                                        Text(
+                                            text = "مدفوع بالفيزا 🔒",
+                                            color = MinyooGreenDark,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (order.paymobTransactionId != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("رقم عملية Paymob:", color = MinyooSlateLight, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    order.paymobTransactionId ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0A1E3F)
+                                )
+                            }
+                        }
+
+                        if (order.maskedCardNumber != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("البطاقة المستخدمة:", color = MinyooSlateLight, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    order.maskedCardNumber ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))

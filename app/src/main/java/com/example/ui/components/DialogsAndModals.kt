@@ -277,7 +277,8 @@ fun LocationSelectionDialog(
 fun RoleSelectionDialog(
     currentRole: UserRole,
     onRoleSelected: (UserRole) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -308,7 +309,7 @@ fun RoleSelectionDialog(
                 }
 
                 Text(
-                    text = "منصة MINYOO تدعم 4 واجهات وصلاحيات متكاملة في الوقت الفعلي:",
+                    text = "منصة لقمة تدعم واجهات وأدوار متكاملة في الوقت الفعلي:",
                     style = MaterialTheme.typography.bodySmall,
                     color = MinyooSlateLight,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -316,7 +317,7 @@ fun RoleSelectionDialog(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                UserRole.values().forEach { role ->
+                UserRole.entries.forEach { role ->
                     val isSelected = role == currentRole
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -376,6 +377,23 @@ fun RoleSelectionDialog(
                                 )
                             }
                         }
+                    }
+                }
+
+                if (onLogout != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onDismiss()
+                            onLogout()
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().testTag("dialog_logout_btn")
+                    ) {
+                        Icon(imageVector = Icons.Default.ExitToApp, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("تسجيل الخروج والعودة لشاشة الدخول", fontWeight = FontWeight.Bold)
                     }
                 }
             }

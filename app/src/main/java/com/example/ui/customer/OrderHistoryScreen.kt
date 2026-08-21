@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Order
 import com.example.data.model.OrderStatus
+import com.example.data.model.PaymentMethod
 import com.example.ui.theme.*
 
 @Composable
@@ -205,12 +206,27 @@ fun OrderHistoryScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "${order.total.toInt()} جنيه",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MinyooOrangePrimary
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${order.total.toInt()} جنيه",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MinyooOrangePrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (order.paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || order.paymobTransactionId != null) MinyooGreenLight else MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Text(
+                                            text = if (order.paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || order.paymobTransactionId != null) "💳 Paymob" else "💵 كاش",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (order.paymentMethod == PaymentMethod.ONLINE_CARD_PAYMOB || order.paymobTransactionId != null) MinyooGreenDark else MinyooSlateLight,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
 
                                 Row {
                                     if (order.status == OrderStatus.DELIVERED) {

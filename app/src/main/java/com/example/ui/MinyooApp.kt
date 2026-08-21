@@ -20,9 +20,12 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.*
 import com.example.data.repository.MinyooRepository
 import com.example.ui.admin.AdminPortalScreen
+import com.example.ui.auth.AuthOnboardingScreen
+import com.example.ui.auth.RestaurantUnderReviewScreen
 import com.example.ui.components.*
 import com.example.ui.courier.CourierPortalScreen
 import com.example.ui.customer.*
+import com.example.ui.restaurant.RestaurantOwnerOrdersScreen
 import com.example.ui.restaurant.RestaurantPortalScreen
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
@@ -39,6 +42,7 @@ sealed class Screen {
     object Profile : Screen()
     object Support : Screen()
     object Notifications : Screen()
+    object RestaurantOwnerOrders : Screen()
 }
 
 @Composable
@@ -48,6 +52,7 @@ fun MinyooApp() {
     val coroutineScope = rememberCoroutineScope()
 
     // State collections
+    val hasActiveSession by repository.hasActiveSession.collectAsState()
     val currentUser by repository.currentUser.collectAsState()
     val currentAddress by repository.selectedAddress.collectAsState()
     val savedAddresses by repository.addresses.collectAsState(initial = emptyList())
@@ -75,22 +80,57 @@ fun MinyooApp() {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // If no active session, show Initial Login / Registration Onboarding Screen
+    if (!hasActiveSession) {
+        AuthOnboardingScreen(
+            onLogin = { ident, pass ->
+                val res = repository.login(ident, pass)
+                if (res is LoginResult.Success && res.user.role == UserRole.CUSTOMER) {
+                    currentScreen = Screen.Home
+                }
+                res
+            },
+            onCustomerRegistered = { name, phone, pass, city ->
+                val res = repository.registerCustomer(name, phone, pass, city)
+                currentScreen = Screen.Home
+                res
+            },
+            onRestaurantRegistered = { data, pass ->
+                repository.registerRestaurant(data, pass)
+            }
+        )
+        return
+    }
+
     // When role changes away from CUSTOMER, render appropriate partner portal
     when (currentUser.role) {
         UserRole.RESTAURANT_OWNER -> {
-            val userRest = restaurants.first()
-            RestaurantPortalScreen(
-                restaurant = userRest,
-                orders = orders,
-                products = products,
-                onAdvanceOrderStatus = { orderId ->
-                    coroutineScope.launch { repository.advanceOrderStatus(orderId) }
-                },
-                onToggleProductAvailability = { productId ->
-                    repository.toggleProductAvailability(productId)
-                },
-                onRoleSwitcherClick = { showRoleDialog = true }
-            )
+            val regRest = currentUser.registeredRestaurant
+            if (regRest != null && regRest.status == RestaurantStatus.PENDING) {
+                RestaurantUnderReviewScreen(
+                    registrationData = regRest,
+                    onApproveClick = {
+                        repository.approveRestaurantApplication()
+                    },
+                    onLogoutClick = {
+                        repository.logoutSession()
+                    }
+                )
+            } else {
+                val userRest = restaurants.find { it.name == regRest?.restaurantName } ?: restaurants.first()
+                RestaurantOwnerOrdersScreen(
+                    restaurant = userRest,
+                    allRestaurants = restaurants,
+                    orders = orders,
+                    onAdvanceOrderStatus = { orderId ->
+                        coroutineScope.launch { repository.advanceOrderStatus(orderId) }
+                    },
+                    onRoleSwitcherClick = { showRoleDialog = true },
+                    onAddSampleOrder = {
+                        coroutineScope.launch { repository.createSampleIncomingOrder(userRest.id) }
+                    }
+                )
+            }
         }
         UserRole.COURIER -> {
             CourierPortalScreen(
@@ -309,11 +349,13 @@ fun MinyooApp() {
                                 subtotal = subtotal,
                                 deliveryFee = deliveryFee,
                                 discount = discount,
+                                customerName = currentUser.name,
+                                customerPhone = currentUser.phone,
                                 onBackClick = { currentScreen = Screen.Cart },
                                 onChangeAddressClick = { showAddressDialog = true },
-                                onConfirmOrder = { paymentMethod, notes ->
+                                onConfirmOrder = { paymentMethod, notes, paymobResult ->
                                     coroutineScope.launch {
-                                        val newOrder = repository.placeOrder(paymentMethod, notes)
+                                        val newOrder = repository.placeOrder(paymentMethod, notes, paymobResult)
                                         if (newOrder != null) {
                                             currentScreen = Screen.OrderTracking(newOrder)
                                         }
@@ -391,8 +433,26 @@ fun MinyooApp() {
                                 savedAddresses = savedAddresses,
                                 onSavedAddressesClick = { showAddressDialog = true },
                                 onRoleSwitcherClick = { showRoleDialog = true },
+                                onRestaurantPortalClick = { currentScreen = Screen.RestaurantOwnerOrders },
                                 onSupportClick = { currentScreen = Screen.Support },
-                                onNotificationsClick = { currentScreen = Screen.Notifications }
+                                onNotificationsClick = { currentScreen = Screen.Notifications },
+                                onLogoutClick = { repository.logoutSession() }
+                            )
+                        }
+                        is Screen.RestaurantOwnerOrders -> {
+                            val userRest = restaurants.first()
+                            RestaurantOwnerOrdersScreen(
+                                restaurant = userRest,
+                                allRestaurants = restaurants,
+                                orders = orders,
+                                onAdvanceOrderStatus = { orderId ->
+                                    coroutineScope.launch { repository.advanceOrderStatus(orderId) }
+                                },
+                                onRoleSwitcherClick = { showRoleDialog = true },
+                                onBackClick = { currentScreen = Screen.Profile },
+                                onAddSampleOrder = {
+                                    coroutineScope.launch { repository.createSampleIncomingOrder(userRest.id) }
+                                }
                             )
                         }
                         is Screen.Support -> {
@@ -450,7 +510,8 @@ fun MinyooApp() {
         RoleSelectionDialog(
             currentRole = currentUser.role,
             onRoleSelected = { repository.setUserRole(it) },
-            onDismiss = { showRoleDialog = false }
+            onDismiss = { showRoleDialog = false },
+            onLogout = { repository.logoutSession() }
         )
     }
 }
