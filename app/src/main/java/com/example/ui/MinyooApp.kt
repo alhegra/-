@@ -1,0 +1,456 @@
+package com.example.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.data.model.*
+import com.example.data.repository.MinyooRepository
+import com.example.ui.admin.AdminPortalScreen
+import com.example.ui.components.*
+import com.example.ui.courier.CourierPortalScreen
+import com.example.ui.customer.*
+import com.example.ui.restaurant.RestaurantPortalScreen
+import com.example.ui.theme.*
+import kotlinx.coroutines.launch
+
+sealed class Screen {
+    object Home : Screen()
+    data class RestaurantDetail(val restaurant: Restaurant) : Screen()
+    object Cart : Screen()
+    object Checkout : Screen()
+    data class OrderTracking(val order: Order) : Screen()
+    object OrderHistory : Screen()
+    object Favorites : Screen()
+    object AiAssistant : Screen()
+    object Profile : Screen()
+    object Support : Screen()
+    object Notifications : Screen()
+}
+
+@Composable
+fun MinyooApp() {
+    val context = LocalContext.current
+    val repository = remember { MinyooRepository.getInstance(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // State collections
+    val currentUser by repository.currentUser.collectAsState()
+    val currentAddress by repository.selectedAddress.collectAsState()
+    val savedAddresses by repository.addresses.collectAsState(initial = emptyList())
+    val restaurants by repository.restaurants.collectAsState()
+    val products by repository.products.collectAsState()
+    val cartItems by repository.cartItems.collectAsState()
+    val appliedCoupon by repository.appliedCoupon.collectAsState()
+    val orders by repository.allOrders.collectAsState(initial = emptyList())
+    val favorites by repository.favorites.collectAsState(initial = emptyList())
+    val notifications by repository.notifications.collectAsState(initial = emptyList())
+    val supportTickets by repository.supportTickets.collectAsState(initial = emptyList())
+
+    val (subtotal, deliveryFee, discount) = repository.getCartSummary()
+    val cartCount = cartItems.sumOf { it.quantity }
+    val unreadNotifsCount = notifications.count { !it.isRead }
+    val favoriteIds = remember(favorites) { favorites.map { it.id }.toSet() }
+
+    // Navigation state
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+
+    // Modal dialogs
+    var showAddressDialog by remember { mutableStateOf(false) }
+    var showRoleDialog by remember { mutableStateOf(false) }
+    var selectedProductForCustomization by remember { mutableStateOf<Pair<Product, Restaurant>?>(null) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // When role changes away from CUSTOMER, render appropriate partner portal
+    when (currentUser.role) {
+        UserRole.RESTAURANT_OWNER -> {
+            val userRest = restaurants.first()
+            RestaurantPortalScreen(
+                restaurant = userRest,
+                orders = orders,
+                products = products,
+                onAdvanceOrderStatus = { orderId ->
+                    coroutineScope.launch { repository.advanceOrderStatus(orderId) }
+                },
+                onToggleProductAvailability = { productId ->
+                    repository.toggleProductAvailability(productId)
+                },
+                onRoleSwitcherClick = { showRoleDialog = true }
+            )
+        }
+        UserRole.COURIER -> {
+            CourierPortalScreen(
+                orders = orders,
+                onAdvanceOrderStatus = { orderId ->
+                    coroutineScope.launch { repository.advanceOrderStatus(orderId) }
+                },
+                onRoleSwitcherClick = { showRoleDialog = true }
+            )
+        }
+        UserRole.ADMIN -> {
+            AdminPortalScreen(
+                orders = orders,
+                onAdvanceOrderStatus = { orderId ->
+                    coroutineScope.launch { repository.advanceOrderStatus(orderId) }
+                },
+                onCancelOrder = { orderId ->
+                    coroutineScope.launch { repository.cancelOrder(orderId) }
+                },
+                onRoleSwitcherClick = { showRoleDialog = true }
+            )
+        }
+        UserRole.CUSTOMER -> {
+            // Customer App Scaffolding
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                topBar = {
+                    if (currentScreen is Screen.Home) {
+                        MinyooTopBar(
+                            currentAddress = currentAddress,
+                            currentRole = currentUser.role,
+                            unreadNotifsCount = unreadNotifsCount,
+                            onAddressClick = { showAddressDialog = true },
+                            onRoleClick = { showRoleDialog = true },
+                            onNotificationsClick = { currentScreen = Screen.Notifications },
+                            onAiAssistantClick = { currentScreen = Screen.AiAssistant }
+                        )
+                    }
+                },
+                bottomBar = {
+                    // Show Bottom Navigation only on main tabs
+                    val showBottomNav = currentScreen is Screen.Home ||
+                            currentScreen is Screen.AiAssistant ||
+                            currentScreen is Screen.Cart ||
+                            currentScreen is Screen.OrderHistory ||
+                            currentScreen is Screen.Profile
+
+                    if (showBottomNav) {
+                        Column {
+                            HorizontalDivider(thickness = 1.dp, color = MinyooBorder)
+                            NavigationBar(
+                                containerColor = MinyooSurfaceLight,
+                                tonalElevation = 0.dp
+                            ) {
+                                NavigationBarItem(
+                                    selected = currentScreen is Screen.Home,
+                                    onClick = { currentScreen = Screen.Home },
+                                    icon = { Icon(Icons.Default.Home, contentDescription = "الرئيسية") },
+                                    label = { Text("الرئيسية", fontSize = 10.sp, fontWeight = if (currentScreen is Screen.Home) FontWeight.Bold else FontWeight.Medium) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MinyooOrangePrimary,
+                                        selectedTextColor = MinyooOrangePrimary,
+                                        indicatorColor = MinyooOrangeContainer,
+                                        unselectedIconColor = MinyooSlateLight,
+                                        unselectedTextColor = MinyooSlateLight
+                                    ),
+                                    modifier = Modifier.testTag("nav_home")
+                                )
+                                NavigationBarItem(
+                                    selected = currentScreen is Screen.AiAssistant,
+                                    onClick = { currentScreen = Screen.AiAssistant },
+                                    icon = { Icon(Icons.Default.AutoAwesome, contentDescription = "المساعد الذكي") },
+                                    label = { Text("المساعد ✨", fontSize = 10.sp, fontWeight = if (currentScreen is Screen.AiAssistant) FontWeight.Bold else FontWeight.Medium) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MinyooOrangePrimary,
+                                        selectedTextColor = MinyooOrangePrimary,
+                                        indicatorColor = MinyooOrangeContainer,
+                                        unselectedIconColor = MinyooSlateLight,
+                                        unselectedTextColor = MinyooSlateLight
+                                    ),
+                                    modifier = Modifier.testTag("nav_ai")
+                                )
+                                NavigationBarItem(
+                                    selected = currentScreen is Screen.Cart,
+                                    onClick = { currentScreen = Screen.Cart },
+                                    icon = {
+                                        BadgedBox(
+                                            badge = {
+                                                if (cartCount > 0) {
+                                                    Badge(
+                                                        containerColor = MinyooOrangePrimary,
+                                                        modifier = Modifier.size(14.dp)
+                                                    ) {
+                                                        Text("$cartCount", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Icon(Icons.Default.ShoppingCart, contentDescription = "السلة")
+                                        }
+                                    },
+                                    label = { Text("السلة", fontSize = 10.sp, fontWeight = if (currentScreen is Screen.Cart) FontWeight.Bold else FontWeight.Medium) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MinyooOrangePrimary,
+                                        selectedTextColor = MinyooOrangePrimary,
+                                        indicatorColor = MinyooOrangeContainer,
+                                        unselectedIconColor = MinyooSlateLight,
+                                        unselectedTextColor = MinyooSlateLight
+                                    ),
+                                    modifier = Modifier.testTag("nav_cart")
+                                )
+                                NavigationBarItem(
+                                    selected = currentScreen is Screen.OrderHistory,
+                                    onClick = { currentScreen = Screen.OrderHistory },
+                                    icon = { Icon(Icons.Default.ReceiptLong, contentDescription = "طلباتي") },
+                                    label = { Text("طلباتي", fontSize = 10.sp, fontWeight = if (currentScreen is Screen.OrderHistory) FontWeight.Bold else FontWeight.Medium) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MinyooOrangePrimary,
+                                        selectedTextColor = MinyooOrangePrimary,
+                                        indicatorColor = MinyooOrangeContainer,
+                                        unselectedIconColor = MinyooSlateLight,
+                                        unselectedTextColor = MinyooSlateLight
+                                    ),
+                                    modifier = Modifier.testTag("nav_orders")
+                                )
+                                NavigationBarItem(
+                                    selected = currentScreen is Screen.Profile,
+                                    onClick = { currentScreen = Screen.Profile },
+                                    icon = { Icon(Icons.Default.Person, contentDescription = "حسابي") },
+                                    label = { Text("حسابي", fontSize = 10.sp, fontWeight = if (currentScreen is Screen.Profile) FontWeight.Bold else FontWeight.Medium) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MinyooOrangePrimary,
+                                        selectedTextColor = MinyooOrangePrimary,
+                                        indicatorColor = MinyooOrangeContainer,
+                                        unselectedIconColor = MinyooSlateLight,
+                                        unselectedTextColor = MinyooSlateLight
+                                    ),
+                                    modifier = Modifier.testTag("nav_profile")
+                                )
+                            }
+                        }
+                    }
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    when (val screen = currentScreen) {
+                        is Screen.Home -> {
+                            HomeScreen(
+                                restaurants = restaurants,
+                                products = products,
+                                favoriteIds = favoriteIds,
+                                lastOrder = orders.firstOrNull { it.status == OrderStatus.DELIVERED },
+                                onRestaurantClick = { currentScreen = Screen.RestaurantDetail(it) },
+                                onProductClick = { prod, rest ->
+                                    selectedProductForCustomization = Pair(prod, rest)
+                                },
+                                onQuickAddProduct = { prod, rest ->
+                                    selectedProductForCustomization = Pair(prod, rest)
+                                },
+                                onFavoriteToggle = { id, isRest ->
+                                    coroutineScope.launch { repository.toggleFavorite(id, isRest) }
+                                },
+                                onAiAssistantClick = { currentScreen = Screen.AiAssistant },
+                                onReorderClick = { pastOrder ->
+                                    pastOrder.items.forEach { item ->
+                                        val r = restaurants.find { it.id == item.restaurantId } ?: restaurants.first()
+                                        repository.addToCart(item.product, r, item.quantity, item.selectedModifiers, item.notes)
+                                    }
+                                    currentScreen = Screen.Cart
+                                }
+                            )
+                        }
+                        is Screen.RestaurantDetail -> {
+                            RestaurantScreen(
+                                restaurant = screen.restaurant,
+                                products = products,
+                                cartItems = cartItems,
+                                isFavorite = favoriteIds.contains(screen.restaurant.id),
+                                onBackClick = { currentScreen = Screen.Home },
+                                onFavoriteToggle = {
+                                    coroutineScope.launch { repository.toggleFavorite(screen.restaurant.id, true) }
+                                },
+                                onProductClick = { prod ->
+                                    selectedProductForCustomization = Pair(prod, screen.restaurant)
+                                },
+                                onQuickAddProduct = { prod ->
+                                    selectedProductForCustomization = Pair(prod, screen.restaurant)
+                                },
+                                onViewCartClick = { currentScreen = Screen.Cart }
+                            )
+                        }
+                        is Screen.Cart -> {
+                            CartScreen(
+                                cartItems = cartItems,
+                                appliedCoupon = appliedCoupon,
+                                subtotal = subtotal,
+                                deliveryFee = deliveryFee,
+                                discount = discount,
+                                onUpdateQuantity = { id, delta -> repository.updateCartItemQuantity(id, delta) },
+                                onRemoveItem = { id -> repository.removeCartItem(id) },
+                                onApplyCoupon = { code -> repository.applyCoupon(code) },
+                                onRemoveCoupon = { repository.removeCoupon() },
+                                onClearCart = { repository.clearCart() },
+                                onProceedToCheckout = { currentScreen = Screen.Checkout },
+                                onExploreRestaurantsClick = { currentScreen = Screen.Home }
+                            )
+                        }
+                        is Screen.Checkout -> {
+                            CheckoutScreen(
+                                currentAddress = currentAddress,
+                                cartItems = cartItems,
+                                subtotal = subtotal,
+                                deliveryFee = deliveryFee,
+                                discount = discount,
+                                onBackClick = { currentScreen = Screen.Cart },
+                                onChangeAddressClick = { showAddressDialog = true },
+                                onConfirmOrder = { paymentMethod, notes ->
+                                    coroutineScope.launch {
+                                        val newOrder = repository.placeOrder(paymentMethod, notes)
+                                        if (newOrder != null) {
+                                            currentScreen = Screen.OrderTracking(newOrder)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        is Screen.OrderTracking -> {
+                            // Find latest state of this order from orders flow
+                            val liveOrder = orders.find { it.id == screen.order.id } ?: screen.order
+                            OrderTrackingScreen(
+                                order = liveOrder,
+                                onBackClick = { currentScreen = Screen.OrderHistory },
+                                onSimulateNextStep = {
+                                    coroutineScope.launch { repository.advanceOrderStatus(liveOrder.id) }
+                                },
+                                onCancelOrder = {
+                                    coroutineScope.launch { repository.cancelOrder(liveOrder.id) }
+                                },
+                                onSupportClick = { currentScreen = Screen.Support }
+                            )
+                        }
+                        is Screen.OrderHistory -> {
+                            OrderHistoryScreen(
+                                orders = orders,
+                                onOrderClick = { currentScreen = Screen.OrderTracking(it) },
+                                onReorderClick = { pastOrder ->
+                                    pastOrder.items.forEach { item ->
+                                        val r = restaurants.find { it.id == item.restaurantId } ?: restaurants.first()
+                                        repository.addToCart(item.product, r, item.quantity, item.selectedModifiers, item.notes)
+                                    }
+                                    currentScreen = Screen.Cart
+                                },
+                                onExploreClick = { currentScreen = Screen.Home }
+                            )
+                        }
+                        is Screen.Favorites -> {
+                            FavoritesScreen(
+                                restaurants = restaurants,
+                                products = products,
+                                favoriteIds = favoriteIds,
+                                onRestaurantClick = { currentScreen = Screen.RestaurantDetail(it) },
+                                onProductClick = { prod, rest ->
+                                    selectedProductForCustomization = Pair(prod, rest)
+                                },
+                                onQuickAddProduct = { prod, rest ->
+                                    selectedProductForCustomization = Pair(prod, rest)
+                                },
+                                onFavoriteToggle = { id, isRest ->
+                                    coroutineScope.launch { repository.toggleFavorite(id, isRest) }
+                                },
+                                onExploreClick = { currentScreen = Screen.Home }
+                            )
+                        }
+                        is Screen.AiAssistant -> {
+                            AiFoodAssistantScreen(
+                                restaurants = restaurants,
+                                products = products,
+                                onAddMealBundleToCart = { suggestion ->
+                                    val rest = restaurants.find { it.id == suggestion.restaurantId } ?: restaurants.first()
+                                    suggestion.suggestedProducts.forEach { p ->
+                                        repository.addToCart(p, rest, 1, emptyList(), "اقتراح ذكي من مساعد مينيو")
+                                    }
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("تمت إضافة وجبة ${suggestion.title} إلى السلة! 🛍️")
+                                    }
+                                    currentScreen = Screen.Cart
+                                },
+                                onRestaurantClick = { currentScreen = Screen.RestaurantDetail(it) }
+                            )
+                        }
+                        is Screen.Profile -> {
+                            ProfileScreen(
+                                user = currentUser,
+                                savedAddresses = savedAddresses,
+                                onSavedAddressesClick = { showAddressDialog = true },
+                                onRoleSwitcherClick = { showRoleDialog = true },
+                                onSupportClick = { currentScreen = Screen.Support },
+                                onNotificationsClick = { currentScreen = Screen.Notifications }
+                            )
+                        }
+                        is Screen.Support -> {
+                            SupportScreen(
+                                tickets = supportTickets,
+                                onBackClick = { currentScreen = Screen.Profile },
+                                onSubmitTicket = { issueType, message ->
+                                    coroutineScope.launch {
+                                        repository.submitSupportTicket(null, issueType, message)
+                                        snackbarHostState.showSnackbar("تم إرسال تذكرتك بنجاح! سيتم التواصل معك خلال دقائق.")
+                                    }
+                                }
+                            )
+                        }
+                        is Screen.Notifications -> {
+                            NotificationsScreen(
+                                notifications = notifications,
+                                onBackClick = { currentScreen = Screen.Home }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal Sheet: Product Customization
+    selectedProductForCustomization?.let { (product, restaurant) ->
+        ProductCustomizationDialog(
+            product = product,
+            restaurant = restaurant,
+            onAddToCart = { quantity, modifiers, notes ->
+                repository.addToCart(product, restaurant, quantity, modifiers, notes)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("تمت إضافة ${product.name} للسلة بنجاح 🍔")
+                }
+            },
+            onDismiss = { selectedProductForCustomization = null }
+        )
+    }
+
+    // Modal Dialog: Location / Address Selector
+    if (showAddressDialog) {
+        LocationSelectionDialog(
+            currentAddress = currentAddress,
+            savedAddresses = savedAddresses,
+            onSelectAddress = { repository.setSelectedAddress(it) },
+            onAddNewAddress = { coroutineScope.launch { repository.addNewAddress(it) } },
+            onDismiss = { showAddressDialog = false }
+        )
+    }
+
+    // Modal Dialog: Role Switcher
+    if (showRoleDialog) {
+        RoleSelectionDialog(
+            currentRole = currentUser.role,
+            onRoleSelected = { repository.setUserRole(it) },
+            onDismiss = { showRoleDialog = false }
+        )
+    }
+}
