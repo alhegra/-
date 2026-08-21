@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.model.*
 import com.example.ui.theme.*
 
@@ -64,19 +67,15 @@ fun MinyooTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(end = 8.dp)
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
+                Image(
+                    painter = painterResource(id = R.drawable.lo2ma_logo),
+                    contentDescription = "شعار لقمة",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(36.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(MinyooOrangePrimary)
-                ) {
-                    Text(
-                        text = "🍽️",
-                        fontSize = 18.sp
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
+                )
+                Spacer(modifier = Modifier.width(7.dp))
                 Column {
                     Text(
                         text = "لقمة",

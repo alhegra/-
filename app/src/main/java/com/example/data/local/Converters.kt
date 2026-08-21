@@ -75,4 +75,22 @@ class Converters {
     } catch (e: Exception) {
         UserRole.CUSTOMER
     }
+
+    @TypeConverter
+    fun fromModifierGroupList(value: List<com.example.data.model.ModifierGroup>?): String {
+        if (value == null) return ""
+        val type = Types.newParameterizedType(List::class.java, com.example.data.model.ModifierGroup::class.java)
+        return moshi.adapter<List<com.example.data.model.ModifierGroup>>(type).toJson(value)
+    }
+
+    @TypeConverter
+    fun toModifierGroupList(value: String?): List<com.example.data.model.ModifierGroup> {
+        if (value.isNullOrEmpty()) return emptyList()
+        val type = Types.newParameterizedType(List::class.java, com.example.data.model.ModifierGroup::class.java)
+        return try {
+            moshi.adapter<List<com.example.data.model.ModifierGroup>>(type).fromJson(value) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

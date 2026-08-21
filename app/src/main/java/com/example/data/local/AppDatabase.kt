@@ -13,9 +13,11 @@ import androidx.room.TypeConverters
         OrderEntity::class,
         FavoriteEntity::class,
         NotificationEntity::class,
-        SupportTicketEntity::class
+        SupportTicketEntity::class,
+        RestaurantEntity::class,
+        ProductEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -26,6 +28,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun notificationDao(): NotificationDao
     abstract fun supportDao(): SupportDao
+    abstract fun restaurantDao(): RestaurantDao
+    abstract fun productDao(): ProductDao
 
     companion object {
         @Volatile
@@ -37,7 +41,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "minyoo_database"
-                ).fallbackToDestructiveMigration().build()
+                )
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+                    .build()
                 INSTANCE = instance
                 instance
             }

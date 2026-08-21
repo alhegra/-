@@ -2,6 +2,7 @@ package com.example.ui.auth
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +37,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.LoginResult
 import com.example.data.model.RestaurantRegistrationData
 import com.example.data.model.RestaurantStatus
@@ -139,14 +143,17 @@ fun AuthOnboardingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Surface(
-                shape = CircleShape,
+                shape = RoundedCornerShape(22.dp),
                 color = MinyooOrangePrimary,
-                shadowElevation = 6.dp,
-                modifier = Modifier.size(68.dp)
+                shadowElevation = 8.dp,
+                modifier = Modifier.size(80.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(text = "🍽️", fontSize = 34.sp)
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.lo2ma_logo),
+                    contentDescription = "شعار لقمة الرسمي",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))

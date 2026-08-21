@@ -79,7 +79,7 @@ fun RestaurantOwnerOrdersScreen(
         relevantOrders.count { it.status != OrderStatus.DELIVERED && it.status != OrderStatus.CANCELLED }
     }
 
-    // Audio & Visual notification when a new order arrives
+    // Visual notification state when a new order arrives
     var previousPlacedCount by remember { mutableStateOf<Int?>(null) }
     val currentPlacedCount = remember(relevantOrders) {
         relevantOrders.count { it.status == OrderStatus.PLACED }
@@ -88,9 +88,11 @@ fun RestaurantOwnerOrdersScreen(
     LaunchedEffect(currentPlacedCount) {
         if (previousPlacedCount != null && currentPlacedCount > (previousPlacedCount ?: 0)) {
             try {
-                val toneGen = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
-                toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 400)
-            } catch (_: Exception) {}
+                val toneGen = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 80)
+                toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 300)
+                kotlinx.coroutines.delay(350)
+                toneGen.release()
+            } catch (_: Throwable) {}
         }
         previousPlacedCount = currentPlacedCount
     }

@@ -1,5 +1,6 @@
 package com.example.ui.customer
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,10 +19,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.Address
 import com.example.data.model.User
 import com.example.data.model.UserRole
@@ -297,13 +301,22 @@ fun ProfileScreen(
                 )
             }
 
-            // Version Footer
+            // Version Footer with Official Logo
             item {
                 Spacer(modifier = Modifier.height(24.dp))
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.lo2ma_logo),
+                        contentDescription = "شعار لقمة",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "لقمة 🇪🇬 • lo2ma.click",
                         style = MaterialTheme.typography.labelMedium,
@@ -315,6 +328,7 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MinyooSlateMuted
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }

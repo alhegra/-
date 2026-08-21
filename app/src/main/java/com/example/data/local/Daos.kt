@@ -94,3 +94,55 @@ interface SupportDao {
     @Query("UPDATE support_tickets SET status = :status WHERE id = :id")
     suspend fun updateTicketStatus(id: String, status: String)
 }
+
+@Dao
+interface RestaurantDao {
+    @Query("SELECT * FROM restaurants")
+    fun getAllRestaurants(): Flow<List<RestaurantEntity>>
+
+    @Query("SELECT * FROM restaurants WHERE id = :id LIMIT 1")
+    fun getRestaurantById(id: String): Flow<RestaurantEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRestaurant(restaurant: RestaurantEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(restaurants: List<RestaurantEntity>)
+
+    @Query("DELETE FROM restaurants WHERE id = :id")
+    suspend fun deleteRestaurant(id: String)
+
+    @Query("SELECT COUNT(*) FROM restaurants")
+    suspend fun countRestaurants(): Int
+}
+
+@Dao
+interface ProductDao {
+    @Query("SELECT * FROM products")
+    fun getAllProducts(): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE restaurantId = :restaurantId")
+    fun getProductsByRestaurant(restaurantId: String): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products WHERE id = :id LIMIT 1")
+    fun getProductById(id: String): Flow<ProductEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProduct(product: ProductEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(products: List<ProductEntity>)
+
+    @Update
+    suspend fun updateProduct(product: ProductEntity)
+
+    @Query("UPDATE products SET isAvailable = :isAvailable WHERE id = :productId")
+    suspend fun updateProductAvailability(productId: String, isAvailable: Boolean)
+
+    @Query("DELETE FROM products WHERE id = :id")
+    suspend fun deleteProduct(id: String)
+
+    @Query("SELECT COUNT(*) FROM products")
+    suspend fun countProducts(): Int
+}
+

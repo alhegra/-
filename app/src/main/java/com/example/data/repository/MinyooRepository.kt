@@ -6,6 +6,8 @@ import com.example.data.local.AppDatabase
 import com.example.data.local.FavoriteEntity
 import com.example.data.local.NotificationEntity
 import com.example.data.local.OrderEntity
+import com.example.data.local.ProductEntity
+import com.example.data.local.RestaurantEntity
 import com.example.data.local.SupportTicketEntity
 import com.example.data.local.UserAccountEntity
 import com.example.data.model.*
@@ -22,12 +24,27 @@ class MinyooRepository(
 ) {
     private val prefs = context?.getSharedPreferences("lo2ma_session_prefs", Context.MODE_PRIVATE)
 
-    // In-memory restaurant and product data
-    private val _restaurants = MutableStateFlow<List<Restaurant>>(SeedData.restaurants)
-    val restaurants: StateFlow<List<Restaurant>> = _restaurants.asStateFlow()
+    // Room-persisted restaurants with reactive Flow
+    val restaurants: StateFlow<List<Restaurant>> = database.restaurantDao().getAllRestaurants()
+        .map { entities ->
+            if (entities.isEmpty()) {
+                SeedData.restaurants
+            } else {
+                entities.map { it.toDomain() }
+            }
+        }
+        .stateIn(scope, SharingStarted.Eagerly, SeedData.restaurants)
 
-    private val _products = MutableStateFlow<List<Product>>(SeedData.products)
-    val products: StateFlow<List<Product>> = _products.asStateFlow()
+    // Room-persisted products (menu items) with reactive Flow
+    val products: StateFlow<List<Product>> = database.productDao().getAllProducts()
+        .map { entities ->
+            if (entities.isEmpty()) {
+                SeedData.products
+            } else {
+                entities.map { it.toDomain() }
+            }
+        }
+        .stateIn(scope, SharingStarted.Eagerly, SeedData.products)
 
     // Session state
     private val _hasActiveSession = MutableStateFlow(false)
@@ -114,25 +131,27 @@ class MinyooRepository(
             )
 
             if (restData != null) {
-                val existing = _restaurants.value.find { it.name == restData.restaurantName }
-                if (existing == null) {
-                    val newRest = Restaurant(
-                        id = "rest_custom_${System.currentTimeMillis()}",
-                        name = restData.restaurantName,
-                        nameEn = restData.restaurantName,
-                        logoUrl = restData.logoIcon,
-                        coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
-                        cuisines = listOf(restData.cuisine),
-                        rating = 4.9,
-                        reviewCount = 12,
-                        deliveryTimeMinutes = restData.deliveryTimeMinutes,
-                        deliveryFee = 15.0,
-                        minOrder = restData.minOrder,
-                        area = restData.cityArea,
-                        isOpen = true,
-                        isFeatured = true
-                    )
-                    _restaurants.value = listOf(newRest) + _restaurants.value
+                scope.launch {
+                    val existing = database.restaurantDao().getRestaurantById("rest_custom_${restData.restaurantName}").first()
+                    if (existing == null) {
+                        val newRest = Restaurant(
+                            id = "rest_custom_${restData.restaurantName.hashCode()}",
+                            name = restData.restaurantName,
+                            nameEn = restData.restaurantName,
+                            logoUrl = restData.logoIcon,
+                            coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+                            cuisines = listOf(restData.cuisine),
+                            rating = 4.9,
+                            reviewCount = 12,
+                            deliveryTimeMinutes = restData.deliveryTimeMinutes,
+                            deliveryFee = 15.0,
+                            minOrder = restData.minOrder,
+                            area = restData.cityArea,
+                            isOpen = true,
+                            isFeatured = true
+                        )
+                        database.restaurantDao().insertRestaurant(RestaurantEntity.fromDomain(newRest))
+                    }
                 }
             }
 
@@ -142,6 +161,16 @@ class MinyooRepository(
         }
 
         scope.launch {
+            // Prepopulate restaurants if empty in Room
+            if (database.restaurantDao().countRestaurants() == 0) {
+                database.restaurantDao().insertAll(SeedData.restaurants.map { RestaurantEntity.fromDomain(it) })
+            }
+
+            // Prepopulate products (restaurant menu items) if empty in Room
+            if (database.productDao().countProducts() == 0) {
+                database.productDao().insertAll(SeedData.products.map { ProductEntity.fromDomain(it) })
+            }
+
             // Prepopulate seed user accounts if empty
             val userCount = database.userAccountDao().countUsers()
             if (userCount == 0) {
@@ -318,25 +347,27 @@ class MinyooRepository(
         _currentUser.value = userObj
 
         if (regData != null) {
-            val existing = _restaurants.value.find { it.name == regData.restaurantName }
-            if (existing == null) {
-                val newRest = Restaurant(
-                    id = "rest_custom_${System.currentTimeMillis()}",
-                    name = regData.restaurantName,
-                    nameEn = regData.restaurantName,
-                    logoUrl = regData.logoIcon,
-                    coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
-                    cuisines = listOf(regData.cuisine),
-                    rating = 5.0,
-                    reviewCount = 1,
-                    deliveryTimeMinutes = regData.deliveryTimeMinutes,
-                    deliveryFee = 15.0,
-                    minOrder = regData.minOrder,
-                    area = regData.cityArea,
-                    isOpen = true,
-                    isFeatured = true
-                )
-                _restaurants.value = listOf(newRest) + _restaurants.value
+            scope.launch {
+                val existing = database.restaurantDao().getAllRestaurants().first().find { it.name == regData.restaurantName }
+                if (existing == null) {
+                    val newRest = Restaurant(
+                        id = "rest_custom_${regData.restaurantName.hashCode()}",
+                        name = regData.restaurantName,
+                        nameEn = regData.restaurantName,
+                        logoUrl = regData.logoIcon,
+                        coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+                        cuisines = listOf(regData.cuisine),
+                        rating = 5.0,
+                        reviewCount = 1,
+                        deliveryTimeMinutes = regData.deliveryTimeMinutes,
+                        deliveryFee = 15.0,
+                        minOrder = regData.minOrder,
+                        area = regData.cityArea,
+                        isOpen = true,
+                        isFeatured = true
+                    )
+                    database.restaurantDao().insertRestaurant(RestaurantEntity.fromDomain(newRest))
+                }
             }
         }
 
@@ -465,7 +496,33 @@ class MinyooRepository(
             isOpen = true,
             isFeatured = true
         )
-        _restaurants.value = listOf(newRest) + _restaurants.value
+
+        val sampleMenu = listOf(
+            Product(
+                id = "prod_${restId}_1",
+                restaurantId = restId,
+                categoryId = "الأطباق الرئيسية",
+                name = "وجبة ${data.restaurantName} المميزة",
+                description = "وجبة شهية ومحضرة بعناية فائقة وتوابل طازجة",
+                price = 110.0,
+                originalPrice = 135.0,
+                imageUrl = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&auto=format&fit=crop&q=80",
+                isPopular = true,
+                isAvailable = true
+            ),
+            Product(
+                id = "prod_${restId}_2",
+                restaurantId = restId,
+                categoryId = "المقبلات والإضافات",
+                name = "مقبلات وصوصات مشكلة",
+                description = "أطباق مقبلات وصوصات طازجة لتكتمل وجبتك",
+                price = 35.0,
+                originalPrice = null,
+                imageUrl = "https://images.unsplash.com/photo-1576107232684-1279f3908594?w=800&auto=format&fit=crop&q=80",
+                isPopular = false,
+                isAvailable = true
+            )
+        )
 
         val userObj = User(
             id = userId,
@@ -478,6 +535,8 @@ class MinyooRepository(
 
         scope.launch {
             database.userAccountDao().insertUser(userAcc)
+            database.restaurantDao().insertRestaurant(RestaurantEntity.fromDomain(newRest))
+            database.productDao().insertAll(sampleMenu.map { ProductEntity.fromDomain(it) })
         }
 
         prefs?.edit()
@@ -548,10 +607,10 @@ class MinyooRepository(
 
     // Search logic with Egyptian Arabic normalization
     fun searchProductsAndRestaurants(query: String): Pair<List<Restaurant>, List<Product>> {
-        if (query.isBlank()) return Pair(_restaurants.value, emptyList())
+        if (query.isBlank()) return Pair(restaurants.value, emptyList())
         val normQuery = normalizeArabic(query.trim().lowercase())
 
-        val matchedRestaurants = _restaurants.value.filter { rest ->
+        val matchedRestaurants = restaurants.value.filter { rest ->
             val nameNorm = normalizeArabic(rest.name.lowercase())
             val nameEnNorm = rest.nameEn.lowercase()
             val cuisinesNorm = rest.cuisines.map { normalizeArabic(it.lowercase()) }
@@ -562,7 +621,7 @@ class MinyooRepository(
                     isSynonymMatch(normQuery, nameNorm)
         }
 
-        val matchedProducts = _products.value.filter { prod ->
+        val matchedProducts = products.value.filter { prod ->
             val nameNorm = normalizeArabic(prod.name.lowercase())
             val descNorm = normalizeArabic(prod.description.lowercase())
             val catNorm = normalizeArabic(prod.categoryId.lowercase())
@@ -678,7 +737,7 @@ class MinyooRepository(
     fun getCartSummary(): Triple<Double, Double, Double> { // subtotal, deliveryFee, discount
         val subtotal = _cartItems.value.sumOf { it.totalPrice }
         val restId = _cartItems.value.firstOrNull()?.restaurantId
-        val rest = _restaurants.value.find { it.id == restId }
+        val rest = restaurants.value.find { it.id == restId }
         var deliveryFee = rest?.deliveryFee ?: 15.0
 
         var discount = 0.0
@@ -708,7 +767,7 @@ class MinyooRepository(
         if (items.isEmpty()) return null
 
         val restId = items.first().restaurantId
-        val rest = _restaurants.value.find { it.id == restId } ?: return null
+        val rest = restaurants.value.find { it.id == restId } ?: return null
         val (subtotal, deliveryFee, discount) = getCartSummary()
         val serviceFee = 5.0
         val total = (subtotal + deliveryFee + serviceFee - discount).coerceAtLeast(0.0)
@@ -814,8 +873,8 @@ class MinyooRepository(
     }
 
     suspend fun createSampleIncomingOrder(restaurantId: String? = null) {
-        val targetRest = _restaurants.value.find { it.id == restaurantId } ?: _restaurants.value.first()
-        val restProducts = _products.value.filter { it.restaurantId == targetRest.id }.ifEmpty { _products.value }
+        val targetRest = restaurants.value.find { it.id == restaurantId } ?: restaurants.value.first()
+        val restProducts = products.value.filter { it.restaurantId == targetRest.id }.ifEmpty { products.value }
         val randomProduct = restProducts.random()
         val orderNum = "#MNY-${(1000..9999).random()}"
         val orderId = "ord_sample_${System.currentTimeMillis()}"
@@ -903,21 +962,17 @@ class MinyooRepository(
         database.supportDao().insertTicket(ticket)
     }
 
-    // Restaurant Owner Menu management
+    // Restaurant Owner Menu management with Room DB persistence
     fun addOrUpdateProduct(product: Product) {
-        val list = _products.value.toMutableList()
-        val index = list.indexOfFirst { it.id == product.id }
-        if (index >= 0) {
-            list[index] = product
-        } else {
-            list.add(product)
+        scope.launch {
+            database.productDao().insertProduct(ProductEntity.fromDomain(product))
         }
-        _products.value = list
     }
 
     fun toggleProductAvailability(productId: String) {
-        _products.value = _products.value.map {
-            if (it.id == productId) it.copy(isAvailable = !it.isAvailable) else it
+        scope.launch {
+            val current = products.value.find { it.id == productId } ?: return@launch
+            database.productDao().updateProductAvailability(productId, !current.isAvailable)
         }
     }
 

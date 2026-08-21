@@ -172,3 +172,106 @@ data class NotificationEntity(
     val isRead: Boolean,
     val orderId: String?
 )
+
+@Entity(tableName = "restaurants")
+data class RestaurantEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val nameEn: String,
+    val logoUrl: String,
+    val coverUrl: String,
+    val cuisines: List<String>,
+    val rating: Double,
+    val reviewCount: Int,
+    val deliveryTimeMinutes: Int,
+    val deliveryFee: Double,
+    val minOrder: Double,
+    val area: String,
+    val discountBadge: String? = null,
+    val isOpen: Boolean = true,
+    val isFeatured: Boolean = false
+) {
+    fun toDomain(): Restaurant = Restaurant(
+        id = id,
+        name = name,
+        nameEn = nameEn,
+        logoUrl = logoUrl,
+        coverUrl = coverUrl,
+        cuisines = cuisines,
+        rating = rating,
+        reviewCount = reviewCount,
+        deliveryTimeMinutes = deliveryTimeMinutes,
+        deliveryFee = deliveryFee,
+        minOrder = minOrder,
+        area = area,
+        discountBadge = discountBadge,
+        isOpen = isOpen,
+        isFeatured = isFeatured
+    )
+
+    companion object {
+        fun fromDomain(rest: Restaurant): RestaurantEntity = RestaurantEntity(
+            id = rest.id,
+            name = rest.name,
+            nameEn = rest.nameEn,
+            logoUrl = rest.logoUrl,
+            coverUrl = rest.coverUrl,
+            cuisines = rest.cuisines,
+            rating = rest.rating,
+            reviewCount = rest.reviewCount,
+            deliveryTimeMinutes = rest.deliveryTimeMinutes,
+            deliveryFee = rest.deliveryFee,
+            minOrder = rest.minOrder,
+            area = rest.area,
+            discountBadge = rest.discountBadge,
+            isOpen = rest.isOpen,
+            isFeatured = rest.isFeatured
+        )
+    }
+}
+
+@Entity(tableName = "products")
+data class ProductEntity(
+    @PrimaryKey val id: String,
+    val restaurantId: String,
+    val categoryId: String,
+    val name: String,
+    val description: String,
+    val price: Double,
+    val originalPrice: Double? = null,
+    val imageUrl: String,
+    val isPopular: Boolean = false,
+    val isAvailable: Boolean = true,
+    val modifierGroups: List<com.example.data.model.ModifierGroup> = emptyList()
+) {
+    fun toDomain(): Product = Product(
+        id = id,
+        restaurantId = restaurantId,
+        categoryId = categoryId,
+        name = name,
+        description = description,
+        price = price,
+        originalPrice = originalPrice,
+        imageUrl = imageUrl,
+        isPopular = isPopular,
+        isAvailable = isAvailable,
+        modifierGroups = modifierGroups
+    )
+
+    companion object {
+        fun fromDomain(prod: Product): ProductEntity = ProductEntity(
+            id = prod.id,
+            restaurantId = prod.restaurantId,
+            categoryId = prod.categoryId,
+            name = prod.name,
+            description = prod.description,
+            price = prod.price,
+            originalPrice = prod.originalPrice,
+            imageUrl = prod.imageUrl,
+            isPopular = prod.isPopular,
+            isAvailable = prod.isAvailable,
+            modifierGroups = prod.modifierGroups
+        )
+    }
+}
+

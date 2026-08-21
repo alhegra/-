@@ -117,7 +117,22 @@ fun MinyooApp() {
                     }
                 )
             } else {
-                val userRest = restaurants.find { it.name == regRest?.restaurantName } ?: restaurants.first()
+                val userRest = restaurants.find { it.name == regRest?.restaurantName }
+                    ?: restaurants.firstOrNull()
+                    ?: Restaurant(
+                        id = "rest_fallback",
+                        name = "مطعم تجريبي",
+                        nameEn = "Demo Restaurant",
+                        logoUrl = "🍔",
+                        coverUrl = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+                        cuisines = listOf("وجبات سريعة"),
+                        rating = 4.8,
+                        reviewCount = 50,
+                        deliveryTimeMinutes = 30,
+                        deliveryFee = 15.0,
+                        minOrder = 50.0,
+                        area = "وسط البلد"
+                    )
                 RestaurantOwnerOrdersScreen(
                     restaurant = userRest,
                     allRestaurants = restaurants,
