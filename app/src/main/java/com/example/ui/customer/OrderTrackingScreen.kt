@@ -24,6 +24,7 @@ import com.example.data.model.Order
 import com.example.data.model.OrderStatus
 import com.example.data.model.PaymentMethod
 import com.example.ui.components.OrderStatusTimelineView
+import com.example.ui.components.StarRatingInput
 import com.example.ui.theme.*
 
 @Composable
@@ -32,7 +33,8 @@ fun OrderTrackingScreen(
     onBackClick: () -> Unit,
     onSimulateNextStep: () -> Unit,
     onCancelOrder: () -> Unit,
-    onSupportClick: () -> Unit
+    onSupportClick: () -> Unit,
+    onSubmitReview: (Int, String) -> Unit = { _, _ -> }
 ) {
     var showReviewDialog by remember { mutableStateOf(false) }
     var rating by remember { mutableStateOf(5) }
@@ -394,18 +396,13 @@ fun OrderTrackingScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             } else {
-                                Row(horizontalArrangement = Arrangement.Center) {
-                                    (1..5).forEach { star ->
-                                        IconButton(onClick = { rating = star }) {
-                                            Icon(
-                                                imageVector = if (star <= rating) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                                                contentDescription = "$star نجوم",
-                                                tint = MinyooWarmYellow,
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                                StarRatingInput(
+                                    rating = rating,
+                                    onRatingChanged = { rating = it },
+                                    starSize = 32.dp
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 OutlinedTextField(
                                     value = reviewComment,
@@ -417,7 +414,10 @@ fun OrderTrackingScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
 
                                 Button(
-                                    onClick = { reviewSubmitted = true },
+                                    onClick = {
+                                        reviewSubmitted = true
+                                        onSubmitReview(rating, reviewComment)
+                                    },
                                     colors = ButtonDefaults.buttonColors(containerColor = MinyooGreenDark),
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.testTag("submit_review_btn")

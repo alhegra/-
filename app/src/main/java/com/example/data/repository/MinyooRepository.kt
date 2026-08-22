@@ -8,9 +8,11 @@ import com.example.data.local.NotificationEntity
 import com.example.data.local.OrderEntity
 import com.example.data.local.ProductEntity
 import com.example.data.local.RestaurantEntity
+import com.example.data.local.ReviewEntity
 import com.example.data.local.SupportTicketEntity
 import com.example.data.local.UserAccountEntity
 import com.example.data.model.*
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -45,6 +47,45 @@ class MinyooRepository(
             }
         }
         .stateIn(scope, SharingStarted.Eagerly, SeedData.products)
+
+    // Room-persisted reviews with reactive Flow
+    val reviews: StateFlow<List<Review>> = database.reviewDao().getAllReviews()
+        .map { entities ->
+            if (entities.isEmpty()) {
+                listOf(
+                    Review(
+                        id = "rev_1",
+                        restaurantId = "rest_1",
+                        orderId = "ord_101",
+                        customerName = "محمود حسن",
+                        rating = 5.0,
+                        comment = "الأكل كان سخن وطعمه تحفة، والتوصيل سريع جداً! تسلم ايديكم",
+                        date = "منذ يومين"
+                    ),
+                    Review(
+                        id = "rev_2",
+                        restaurantId = "rest_1",
+                        orderId = "ord_102",
+                        customerName = "سارة أحمد",
+                        rating = 4.5,
+                        comment = "الكشري ممتاز والصلصة مظبوطة، شكراً لقمة",
+                        date = "منذ 3 أيام"
+                    ),
+                    Review(
+                        id = "rev_3",
+                        restaurantId = "rest_2",
+                        orderId = "ord_103",
+                        customerName = "كريم إبراهيم",
+                        rating = 5.0,
+                        comment = "أحلى برجر في مصر، الجبنة سايحة والعيش طري جداً",
+                        date = "منذ أسبوع"
+                    )
+                )
+            } else {
+                entities.map { it.toDomain() }
+            }
+        }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     // Session state
     private val _hasActiveSession = MutableStateFlow(false)
@@ -97,6 +138,7 @@ class MinyooRepository(
     val supportTickets: Flow<List<SupportTicketEntity>> = database.supportDao().getAllTickets()
 
     init {
+        syncWithFirestore()
         val isLoggedIn = prefs?.getBoolean("is_logged_in", false) ?: false
         if (isLoggedIn) {
             val savedRoleStr = prefs?.getString("user_role", UserRole.CUSTOMER.name) ?: UserRole.CUSTOMER.name
@@ -169,6 +211,43 @@ class MinyooRepository(
             // Prepopulate products (restaurant menu items) if empty in Room
             if (database.productDao().countProducts() == 0) {
                 database.productDao().insertAll(SeedData.products.map { ProductEntity.fromDomain(it) })
+            }
+
+            // Prepopulate seed reviews if empty in Room
+            if (database.reviewDao().countReviews() == 0) {
+                val seedReviews = listOf(
+                    ReviewEntity(
+                        id = "rev_1",
+                        restaurantId = "rest_1",
+                        orderId = "ord_101",
+                        customerName = "محمود حسن",
+                        rating = 5.0,
+                        comment = "الأكل كان سخن وطعمه تحفة، والتوصيل سريع جداً! تسلم ايديكم",
+                        date = "منذ يومين",
+                        timestamp = System.currentTimeMillis() - 172800000
+                    ),
+                    ReviewEntity(
+                        id = "rev_2",
+                        restaurantId = "rest_1",
+                        orderId = "ord_102",
+                        customerName = "سارة أحمد",
+                        rating = 4.5,
+                        comment = "الكشري ممتاز والصلصة مظبوطة، شكراً لقمة",
+                        date = "منذ 3 أيام",
+                        timestamp = System.currentTimeMillis() - 259200000
+                    ),
+                    ReviewEntity(
+                        id = "rev_3",
+                        restaurantId = "rest_2",
+                        orderId = "ord_103",
+                        customerName = "كريم إبراهيم",
+                        rating = 5.0,
+                        comment = "أحلى برجر في مصر، الجبنة سايحة والعيش طري جداً",
+                        date = "منذ أسبوع",
+                        timestamp = System.currentTimeMillis() - 604800000
+                    )
+                )
+                database.reviewDao().insertAll(seedReviews)
             }
 
             // Prepopulate seed user accounts if empty
@@ -818,6 +897,20 @@ class MinyooRepository(
 
         database.orderDao().insertOrder(orderEntity)
 
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val orderMap = hashMapOf(
+                "id" to orderId,
+                "orderNumber" to orderNumber,
+                "customerId" to _currentUser.value.id,
+                "restaurantId" to rest.id,
+                "status" to OrderStatus.PLACED.name,
+                "total" to total,
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore.collection("orders").document(orderId).set(orderMap)
+        } catch (_: Exception) {}
+
         // Add notification with payment details
         val notifBody = if (txnId != null) {
             "تم دفع ${total.toInt()} ج.م بنجاح عبر بوابة Paymob (رقم العملية: $txnId). طلبك من ${rest.name} قيد التحضير."
@@ -855,6 +948,11 @@ class MinyooRepository(
             OrderStatus.CANCELLED -> OrderStatus.CANCELLED
         }
         database.orderDao().updateOrderStatus(orderId, nextStatus)
+
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            firestore.collection("orders").document(orderId).update("status", nextStatus.name)
+        } catch (_: Exception) {}
 
         // Notify user about status change
         val notif = NotificationEntity(
@@ -973,6 +1071,144 @@ class MinyooRepository(
         scope.launch {
             val current = products.value.find { it.id == productId } ?: return@launch
             database.productDao().updateProductAvailability(productId, !current.isAvailable)
+        }
+    }
+
+    fun submitReview(
+        restaurantId: String,
+        orderId: String,
+        customerName: String,
+        rating: Double,
+        comment: String,
+        onComplete: () -> Unit = {}
+    ) {
+        scope.launch {
+            val revId = "rev_${System.currentTimeMillis()}"
+            val reviewEntity = ReviewEntity(
+                id = revId,
+                restaurantId = restaurantId,
+                orderId = orderId,
+                customerName = customerName,
+                rating = rating,
+                comment = comment,
+                date = "الآن",
+                timestamp = System.currentTimeMillis()
+            )
+            database.reviewDao().insertReview(reviewEntity)
+
+            // Update restaurant rating & review count
+            val restEntity = database.restaurantDao().getRestaurantById(restaurantId).first()
+            if (restEntity != null) {
+                val currentCount = restEntity.reviewCount
+                val currentRating = restEntity.rating
+                val newCount = currentCount + 1
+                val newRating = ((currentRating * currentCount) + rating) / newCount
+                val updatedRest = restEntity.copy(
+                    rating = String.format(java.util.Locale.US, "%.1f", newRating).toDouble(),
+                    reviewCount = newCount
+                )
+                database.restaurantDao().insertRestaurant(updatedRest)
+            }
+            onComplete()
+        }
+    }
+
+    private fun syncWithFirestore() {
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            
+            // Fetch and listen to restaurants collection
+            firestore.collection("restaurants").addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && !snapshot.isEmpty) {
+                    scope.launch(Dispatchers.IO) {
+                        val restEntities = snapshot.documents.mapNotNull { doc ->
+                            val id = doc.getString("id") ?: doc.id
+                            val name = doc.getString("name") ?: return@mapNotNull null
+                            val rating = doc.getDouble("rating") ?: 4.8
+                            val reviewCount = doc.getLong("reviewCount")?.toInt() ?: 100
+                            val deliveryTimeMinutes = doc.getLong("deliveryTimeMinutes")?.toInt() ?: 30
+                            val deliveryFee = doc.getDouble("deliveryFee") ?: 15.0
+                            val imageRes = doc.getString("imageRes") ?: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600"
+                            val cuisines = doc.get("cuisines") as? List<String> ?: listOf("مأكولات مصرية")
+                            val isOpen = doc.getBoolean("isOpen") ?: true
+                            RestaurantEntity(
+                                id = id,
+                                name = name,
+                                nameEn = doc.getString("nameEn") ?: name,
+                                logoUrl = doc.getString("logoUrl") ?: "🍔",
+                                coverUrl = doc.getString("coverUrl") ?: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
+                                cuisines = doc.get("cuisines") as? List<String> ?: listOf("مأكولات مصرية"),
+                                rating = rating,
+                                reviewCount = reviewCount,
+                                deliveryTimeMinutes = deliveryTimeMinutes,
+                                deliveryFee = deliveryFee,
+                                minOrder = doc.getDouble("minOrder") ?: 30.0,
+                                area = doc.getString("area") ?: "القاهرة",
+                                discountBadge = doc.getString("discountBadge"),
+                                isOpen = isOpen,
+                                isFeatured = doc.getBoolean("isFeatured") ?: false
+                            )
+                        }
+                        if (restEntities.isNotEmpty()) {
+                            database.restaurantDao().insertAll(restEntities)
+                        }
+                    }
+                }
+            }
+
+            // Fetch and listen to products (menus) collection
+            firestore.collection("products").addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && !snapshot.isEmpty) {
+                    scope.launch(Dispatchers.IO) {
+                        val prodEntities = snapshot.documents.mapNotNull { doc ->
+                            val id = doc.getString("id") ?: doc.id
+                            val restaurantId = doc.getString("restaurantId") ?: "rest_1"
+                            val name = doc.getString("name") ?: return@mapNotNull null
+                            val description = doc.getString("description") ?: ""
+                            val price = doc.getDouble("price") ?: 50.0
+                            val imageRes = doc.getString("imageRes") ?: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600"
+                            val category = doc.getString("category") ?: "الرئيسية"
+                            val isPopular = doc.getBoolean("isPopular") ?: false
+                            ProductEntity(
+                                id = id,
+                                restaurantId = restaurantId,
+                                categoryId = doc.getString("categoryId") ?: "cat_1",
+                                name = name,
+                                description = description,
+                                price = price,
+                                originalPrice = doc.getDouble("originalPrice"),
+                                imageUrl = doc.getString("imageUrl") ?: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600",
+                                isPopular = isPopular,
+                                isAvailable = doc.getBoolean("isAvailable") ?: true,
+                                modifierGroups = emptyList()
+                            )
+                        }
+                        if (prodEntities.isNotEmpty()) {
+                            database.productDao().insertAll(prodEntities)
+                        }
+                    }
+                }
+            }
+
+            // Listen to orders for real-time delivery status updates
+            firestore.collection("orders").addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && !snapshot.isEmpty) {
+                    scope.launch(Dispatchers.IO) {
+                        for (doc in snapshot.documents) {
+                            val orderId = doc.getString("id") ?: doc.id
+                            val statusStr = doc.getString("status")
+                            if (statusStr != null) {
+                                try {
+                                    val status = OrderStatus.valueOf(statusStr)
+                                    database.orderDao().updateOrderStatus(orderId, status)
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Graceful fallback to local Room and seed data if Firestore is unconfigured or offline
         }
     }
 

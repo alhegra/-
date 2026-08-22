@@ -2,7 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -759,3 +760,148 @@ fun BasicTextFieldWithPlaceholder(
         }
     )
 }
+
+@Composable
+fun StarRatingInput(
+    rating: Int,
+    onRatingChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    starSize: androidx.compose.ui.unit.Dp = 36.dp,
+    activeColor: Color = MinyooWarmYellow,
+    inactiveColor: Color = MinyooBorder
+) {
+    Row(
+        modifier = modifier.testTag("star_rating_input"),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        (1..5).forEach { star ->
+            IconButton(
+                onClick = { onRatingChanged(star) },
+                modifier = Modifier
+                    .size(starSize + 8.dp)
+                    .testTag("star_$star")
+            ) {
+                Icon(
+                    imageVector = if (star <= rating) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = "$star نجوم",
+                    tint = if (star <= rating) activeColor else inactiveColor,
+                    modifier = Modifier.size(starSize)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RatingBarDisplay(
+    rating: Double,
+    reviewCount: Int,
+    modifier: Modifier = Modifier,
+    starSize: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Star,
+            contentDescription = null,
+            tint = MinyooWarmYellow,
+            modifier = Modifier.size(starSize)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = String.format("%.1f", rating),
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "($reviewCount)",
+            style = MaterialTheme.typography.labelSmall,
+            color = MinyooSlateLight
+        )
+    }
+}
+
+@Composable
+fun OrderSuccessAnimationOverlay(
+    message: String = "تم تأكيد طلبك بنجاح! 🎉\nجاري تحضير طلبك وتجهيزه للتوصيل 🛵"
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "order_success_anim")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .testTag("order_success_overlay"),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(32.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(96.dp)
+                        .scale(scale)
+                        .clip(CircleShape)
+                        .background(MinyooGreenDark.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(CircleShape)
+                            .background(MinyooGreenDark)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "طلبك في طريق التنفيذ!",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MinyooCharcoal,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MinyooSlateLight,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+

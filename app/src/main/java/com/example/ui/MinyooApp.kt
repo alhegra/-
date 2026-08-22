@@ -64,6 +64,7 @@ fun MinyooApp() {
     val favorites by repository.favorites.collectAsState(initial = emptyList())
     val notifications by repository.notifications.collectAsState(initial = emptyList())
     val supportTickets by repository.supportTickets.collectAsState(initial = emptyList())
+    val reviews by repository.reviews.collectAsState(initial = emptyList())
 
     val (subtotal, deliveryFee, discount) = repository.getCartSummary()
     val cartCount = cartItems.sumOf { it.quantity }
@@ -76,6 +77,7 @@ fun MinyooApp() {
     // Modal dialogs
     var showAddressDialog by remember { mutableStateOf(false) }
     var showRoleDialog by remember { mutableStateOf(false) }
+    var showOrderSuccessOverlay by remember { mutableStateOf(false) }
     var selectedProductForCustomization by remember { mutableStateOf<Pair<Product, Restaurant>?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -323,11 +325,15 @@ fun MinyooApp() {
                             )
                         }
                         is Screen.RestaurantDetail -> {
+                            val restReviews = remember(reviews, screen.restaurant.id) {
+                                reviews.filter { it.restaurantId == screen.restaurant.id }
+                            }
                             RestaurantScreen(
                                 restaurant = screen.restaurant,
                                 products = products,
                                 cartItems = cartItems,
                                 isFavorite = favoriteIds.contains(screen.restaurant.id),
+                                restaurantReviews = restReviews,
                                 onBackClick = { currentScreen = Screen.Home },
                                 onFavoriteToggle = {
                                     coroutineScope.launch { repository.toggleFavorite(screen.restaurant.id, true) }
@@ -370,7 +376,10 @@ fun MinyooApp() {
                                 onChangeAddressClick = { showAddressDialog = true },
                                 onConfirmOrder = { paymentMethod, notes, paymobResult ->
                                     coroutineScope.launch {
+                                        showOrderSuccessOverlay = true
                                         val newOrder = repository.placeOrder(paymentMethod, notes, paymobResult)
+                                        kotlinx.coroutines.delay(1600)
+                                        showOrderSuccessOverlay = false
                                         if (newOrder != null) {
                                             currentScreen = Screen.OrderTracking(newOrder)
                                         }
@@ -390,7 +399,20 @@ fun MinyooApp() {
                                 onCancelOrder = {
                                     coroutineScope.launch { repository.cancelOrder(liveOrder.id) }
                                 },
-                                onSupportClick = { currentScreen = Screen.Support }
+                                onSupportClick = { currentScreen = Screen.Support },
+                                onSubmitReview = { ratingVal, commentVal ->
+                                    coroutineScope.launch {
+                                        val firstItem = liveOrder.items.firstOrNull()
+                                        val restId = firstItem?.restaurantId ?: restaurants.first().id
+                                        repository.submitReview(
+                                            restaurantId = restId,
+                                            orderId = liveOrder.id,
+                                            customerName = currentUser.name.ifBlank { "عميل لقمة" },
+                                            rating = ratingVal.toDouble(),
+                                            comment = commentVal
+                                        )
+                                    }
+                                }
                             )
                         }
                         is Screen.OrderHistory -> {
@@ -488,6 +510,10 @@ fun MinyooApp() {
                                 onBackClick = { currentScreen = Screen.Home }
                             )
                         }
+                    }
+
+                    if (showOrderSuccessOverlay) {
+                        OrderSuccessAnimationOverlay()
                     }
                 }
             }

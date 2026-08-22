@@ -96,6 +96,24 @@ interface SupportDao {
 }
 
 @Dao
+interface ReviewDao {
+    @Query("SELECT * FROM reviews WHERE restaurantId = :restaurantId ORDER BY timestamp DESC")
+    fun getReviewsForRestaurant(restaurantId: String): Flow<List<ReviewEntity>>
+
+    @Query("SELECT * FROM reviews ORDER BY timestamp DESC")
+    fun getAllReviews(): Flow<List<ReviewEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReview(review: ReviewEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(reviews: List<ReviewEntity>)
+
+    @Query("SELECT COUNT(*) FROM reviews")
+    suspend fun countReviews(): Int
+}
+
+@Dao
 interface RestaurantDao {
     @Query("SELECT * FROM restaurants")
     fun getAllRestaurants(): Flow<List<RestaurantEntity>>

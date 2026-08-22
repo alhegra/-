@@ -15,9 +15,10 @@ import androidx.room.TypeConverters
         NotificationEntity::class,
         SupportTicketEntity::class,
         RestaurantEntity::class,
-        ProductEntity::class
+        ProductEntity::class,
+        ReviewEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun supportDao(): SupportDao
     abstract fun restaurantDao(): RestaurantDao
     abstract fun productDao(): ProductDao
+    abstract fun reviewDao(): ReviewDao
 
     companion object {
         @Volatile

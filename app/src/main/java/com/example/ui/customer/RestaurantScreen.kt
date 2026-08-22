@@ -28,6 +28,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.CartItem
 import com.example.data.model.Product
 import com.example.data.model.Restaurant
+import com.example.data.model.Review
 import com.example.ui.components.ProductCardItem
 import com.example.ui.theme.*
 
@@ -37,6 +38,7 @@ fun RestaurantScreen(
     products: List<Product>,
     cartItems: List<CartItem>,
     isFavorite: Boolean,
+    restaurantReviews: List<Review> = emptyList(),
     onBackClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onProductClick: (Product) -> Unit,
@@ -317,6 +319,110 @@ fun RestaurantScreen(
                         onClick = { onProductClick(product) },
                         onQuickAdd = { onQuickAddProduct(product) }
                     )
+                }
+            }
+
+            // Customer Reviews Section Header & List
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "آراء العملاء والتقييمات ⭐",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MinyooCharcoal
+                        )
+                        Text(
+                            text = "${restaurant.reviewCount} تقييم إجمالي",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MinyooSlateLight
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+
+            if (restaurantReviews.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "لا توجد تقييمات بعد. كن أول من يقيّم هذا المطعم!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MinyooSlateLight
+                        )
+                    }
+                }
+            } else {
+                items(restaurantReviews) { review ->
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = review.customerName,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MinyooCharcoal
+                                )
+                                Text(
+                                    text = review.date,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MinyooSlateLight
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                repeat(5) { index ->
+                                    Icon(
+                                        imageVector = if (index < review.rating.toInt()) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                                        contentDescription = null,
+                                        tint = MinyooWarmYellow,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${review.rating}",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MinyooCharcoal
+                                )
+                            }
+                            if (review.comment.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = review.comment,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MinyooCharcoal
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

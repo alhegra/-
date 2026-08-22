@@ -173,6 +173,41 @@ data class NotificationEntity(
     val orderId: String?
 )
 
+@Entity(tableName = "reviews")
+data class ReviewEntity(
+    @PrimaryKey val id: String,
+    val restaurantId: String,
+    val orderId: String,
+    val customerName: String,
+    val rating: Double,
+    val comment: String,
+    val date: String,
+    val timestamp: Long = System.currentTimeMillis()
+) {
+    fun toDomain(): Review = Review(
+        id = id,
+        restaurantId = restaurantId,
+        orderId = orderId,
+        customerName = customerName,
+        rating = rating,
+        comment = comment,
+        date = date
+    )
+
+    companion object {
+        fun fromDomain(rev: Review): ReviewEntity = ReviewEntity(
+            id = rev.id,
+            restaurantId = rev.restaurantId,
+            orderId = rev.orderId,
+            customerName = rev.customerName,
+            rating = rev.rating,
+            comment = rev.comment,
+            date = rev.date,
+            timestamp = System.currentTimeMillis()
+        )
+    }
+}
+
 @Entity(tableName = "restaurants")
 data class RestaurantEntity(
     @PrimaryKey val id: String,
