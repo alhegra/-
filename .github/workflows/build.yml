@@ -10,26 +10,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
+
       - name: Generate Gradle Wrapper if missing
         run: |
           if [ ! -f "gradlew" ]; then
             gradle wrapper --gradle-version 9.3.1
           fi
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-      - name: Generate debug keystore
+
+      - name: Set headless mode
+        run: echo "org.gradle.jvmargs=-Xmx4g -Djava.awt.headless=true" >> gradle.properties
+
+      - name: Generate debug keystore at repo root
         run: |
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore \
+          keytool -genkey -v -keystore debug.keystore \
             -storepass android -alias androiddebugkey \
             -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+            -dname "CN=Android Debug,O=Android,C=US" -noprompt
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
