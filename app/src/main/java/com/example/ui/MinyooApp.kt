@@ -46,7 +46,10 @@ sealed class Screen {
 }
 
 @Composable
-fun MinyooApp() {
+fun MinyooApp(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChanged: (ThemeMode) -> Unit = {}
+) {
     val context = LocalContext.current
     val repository = remember { MinyooRepository.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -96,6 +99,8 @@ fun MinyooApp() {
                 AuthOnboardingScreen(
                     isEnglish = isEnglish,
                     onToggleLanguage = { isEnglish = !isEnglish },
+                    themeMode = themeMode,
+                    onThemeModeChanged = onThemeModeChanged,
                     onLogin = { ident, pass ->
                         val res = repository.login(ident, pass)
                         if (res is LoginResult.Success && res.user.role == UserRole.CUSTOMER) {
@@ -481,6 +486,8 @@ fun MinyooApp() {
                                 savedAddresses = savedAddresses,
                                 isEnglish = isEnglish,
                                 onToggleLanguage = { isEnglish = !isEnglish },
+                                themeMode = themeMode,
+                                onThemeModeChanged = onThemeModeChanged,
                                 onSavedAddressesClick = { showAddressDialog = true },
                                 onRoleSwitcherClick = { showRoleDialog = true },
                                 onRestaurantPortalClick = { currentScreen = Screen.RestaurantOwnerOrders },

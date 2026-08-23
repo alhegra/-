@@ -7,6 +7,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
+enum class ThemeMode {
+    SYSTEM, LIGHT, DARK
+}
+
 private val DarkColorScheme = darkColorScheme(
     primary = MinyooOrangePrimary,
     onPrimary = Color.White,

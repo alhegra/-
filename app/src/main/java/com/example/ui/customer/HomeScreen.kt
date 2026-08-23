@@ -237,12 +237,12 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MinyooSurfaceLight),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .clickable { onAiAssistantClick() }
-                    .border(1.dp, MinyooBorder, RoundedCornerShape(20.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
                     .testTag("ai_assistant_home_banner")
             ) {
                 Row(
@@ -318,10 +318,10 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(14.dp))
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = MinyooSurfaceLight),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, MinyooBorder, RoundedCornerShape(18.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(

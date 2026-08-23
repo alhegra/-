@@ -37,6 +37,8 @@ fun ProfileScreen(
     savedAddresses: List<Address>,
     isEnglish: Boolean = false,
     onToggleLanguage: () -> Unit = {},
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
     onSavedAddressesClick: () -> Unit,
     onRoleSwitcherClick: () -> Unit,
     onRestaurantPortalClick: () -> Unit = {},
@@ -202,6 +204,97 @@ fun ProfileScreen(
                             onCheckedChange = { onToggleLanguage() },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF16A34A))
                         )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Theme Selection Card
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .testTag("profile_theme_card")
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = when (themeMode) {
+                                    ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                                    ThemeMode.LIGHT -> Icons.Default.LightMode
+                                    ThemeMode.DARK -> Icons.Default.DarkMode
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isEnglish) "App Theme / Appearance" else "مظهر التطبيق (الوضع الليلي والنهاري)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (isEnglish) "Adapt to system or choose manually" else "يتكيف مع وضع الهاتف تلقائياً أو اختيار يدوي",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val isSystem = themeMode == ThemeMode.SYSTEM
+                            Button(
+                                onClick = { onThemeModeChanged(ThemeMode.SYSTEM) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isSystem) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (isSystem) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).testTag("theme_mode_system")
+                            ) {
+                                Text(text = if (isEnglish) "System" else "تلقائي (الهاتف)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            val isLight = themeMode == ThemeMode.LIGHT
+                            Button(
+                                onClick = { onThemeModeChanged(ThemeMode.LIGHT) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isLight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (isLight) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).testTag("theme_mode_light")
+                            ) {
+                                Text(text = if (isEnglish) "Light" else "نهاري ☀️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            val isDark = themeMode == ThemeMode.DARK
+                            Button(
+                                onClick = { onThemeModeChanged(ThemeMode.DARK) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isDark) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (isDark) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).testTag("theme_mode_dark")
+                            ) {
+                                Text(text = if (isEnglish) "Dark" else "ليلي 🌙", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))

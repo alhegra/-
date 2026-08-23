@@ -56,10 +56,10 @@ fun MinyooTopBar(
     onAiAssistantClick: () -> Unit
 ) {
     Surface(
-        color = MinyooSurfaceLight,
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
             .fillMaxWidth()
-            .border(width = 1.dp, color = MinyooBorder)
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier
@@ -347,13 +347,13 @@ fun RestaurantCard(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MinyooSurfaceLight),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .clickable { onClick() }
-            .border(1.dp, MinyooBorder, RoundedCornerShape(24.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
             .testTag("restaurant_card_${restaurant.id}")
     ) {
         Column {
@@ -461,7 +461,7 @@ fun RestaurantCard(
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
-                        color = MinyooCharcoal,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

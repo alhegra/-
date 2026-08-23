@@ -57,6 +57,8 @@ enum class AuthScreenMode {
 fun AuthOnboardingScreen(
     isEnglish: Boolean = false,
     onToggleLanguage: () -> Unit = {},
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
     onLogin: suspend (identifier: String, password: String) -> LoginResult,
     onCustomerRegistered: (name: String, phone: String, password: String, city: String) -> LoginResult,
     onRestaurantRegistered: (RestaurantRegistrationData, password: String) -> LoginResult,
@@ -131,11 +133,34 @@ fun AuthOnboardingScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Language Switcher at Top
+            // Theme & Language Switcher at Top
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(
+                    onClick = {
+                        val nextMode = when (themeMode) {
+                            ThemeMode.SYSTEM -> ThemeMode.LIGHT
+                            ThemeMode.LIGHT -> ThemeMode.DARK
+                            ThemeMode.DARK -> ThemeMode.SYSTEM
+                        }
+                        onThemeModeChanged(nextMode)
+                    },
+                    modifier = Modifier.testTag("auth_theme_toggle")
+                ) {
+                    Icon(
+                        imageVector = when (themeMode) {
+                            ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                            ThemeMode.LIGHT -> Icons.Default.LightMode
+                            ThemeMode.DARK -> Icons.Default.DarkMode
+                        },
+                        contentDescription = "تغيير المظهر",
+                        tint = MinyooOrangePrimary
+                    )
+                }
+
                 TextButton(
                     onClick = onToggleLanguage,
                     colors = ButtonDefaults.textButtonColors(contentColor = MinyooOrangePrimary),
