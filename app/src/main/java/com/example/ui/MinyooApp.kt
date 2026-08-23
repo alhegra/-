@@ -48,7 +48,9 @@ sealed class Screen {
 @Composable
 fun MinyooApp(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    onThemeModeChanged: (ThemeMode) -> Unit = {}
+    onThemeModeChanged: (ThemeMode) -> Unit = {},
+    isEnglish: Boolean = false,
+    onToggleLanguage: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { MinyooRepository.getInstance(context) }
@@ -78,7 +80,6 @@ fun MinyooApp(
 
     // Navigation state
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
-    var isEnglish by remember { mutableStateOf(false) }
 
     // Modal dialogs
     var showAddressDialog by remember { mutableStateOf(false) }
@@ -98,7 +99,7 @@ fun MinyooApp(
             if (!hasActiveSession) {
                 AuthOnboardingScreen(
                     isEnglish = isEnglish,
-                    onToggleLanguage = { isEnglish = !isEnglish },
+                    onToggleLanguage = onToggleLanguage,
                     themeMode = themeMode,
                     onThemeModeChanged = onThemeModeChanged,
                     onLogin = { ident, pass ->
@@ -485,7 +486,7 @@ fun MinyooApp(
                                 user = currentUser,
                                 savedAddresses = savedAddresses,
                                 isEnglish = isEnglish,
-                                onToggleLanguage = { isEnglish = !isEnglish },
+                                onToggleLanguage = onToggleLanguage,
                                 themeMode = themeMode,
                                 onThemeModeChanged = onThemeModeChanged,
                                 onSavedAddressesClick = { showAddressDialog = true },

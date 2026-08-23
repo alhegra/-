@@ -17,6 +17,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var themeMode by remember { mutableStateOf(ThemeMode.SYSTEM) }
+            var isEnglish by remember { mutableStateOf(java.util.Locale.getDefault().language.startsWith("en")) }
+
             val systemDark = isSystemInDarkTheme()
             val isDark = when (themeMode) {
                 ThemeMode.SYSTEM -> systemDark
@@ -25,10 +27,14 @@ class MainActivity : ComponentActivity() {
             }
 
             MyApplicationTheme(darkTheme = isDark) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides if (isEnglish) LayoutDirection.Ltr else LayoutDirection.Rtl
+                ) {
                     MinyooApp(
                         themeMode = themeMode,
-                        onThemeModeChanged = { themeMode = it }
+                        onThemeModeChanged = { themeMode = it },
+                        isEnglish = isEnglish,
+                        onToggleLanguage = { isEnglish = !isEnglish }
                     )
                 }
             }
