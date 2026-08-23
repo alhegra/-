@@ -102,7 +102,7 @@ fun AiFoodAssistantScreen(
 
                     Column {
                         Text(
-                            text = "مساعد مينيو الذكي (AI) 🤖",
+                            text = "مساعد لقمة الذكي (AI) 🤖",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MinyooCharcoal

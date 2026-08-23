@@ -75,6 +75,7 @@ fun MinyooApp() {
 
     // Navigation state
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    var isEnglish by remember { mutableStateOf(false) }
 
     // Modal dialogs
     var showAddressDialog by remember { mutableStateOf(false) }
@@ -93,6 +94,8 @@ fun MinyooApp() {
             // If no active session, show Initial Login / Registration Onboarding Screen
             if (!hasActiveSession) {
                 AuthOnboardingScreen(
+                    isEnglish = isEnglish,
+                    onToggleLanguage = { isEnglish = !isEnglish },
                     onLogin = { ident, pass ->
                         val res = repository.login(ident, pass)
                         if (res is LoginResult.Success && res.user.role == UserRole.CUSTOMER) {
@@ -462,7 +465,7 @@ fun MinyooApp() {
                                 onAddMealBundleToCart = { suggestion ->
                                     val rest = restaurants.find { it.id == suggestion.restaurantId } ?: restaurants.first()
                                     suggestion.suggestedProducts.forEach { p ->
-                                        repository.addToCart(p, rest, 1, emptyList(), "اقتراح ذكي من مساعد مينيو")
+                                        repository.addToCart(p, rest, 1, emptyList(), "اقتراح ذكي من مساعد لقمة")
                                     }
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("تمت إضافة وجبة ${suggestion.title} إلى السلة! 🛍️")
@@ -476,6 +479,8 @@ fun MinyooApp() {
                             ProfileScreen(
                                 user = currentUser,
                                 savedAddresses = savedAddresses,
+                                isEnglish = isEnglish,
+                                onToggleLanguage = { isEnglish = !isEnglish },
                                 onSavedAddressesClick = { showAddressDialog = true },
                                 onRoleSwitcherClick = { showRoleDialog = true },
                                 onRestaurantPortalClick = { currentScreen = Screen.RestaurantOwnerOrders },

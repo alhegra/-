@@ -73,7 +73,7 @@ fun CourierPortalScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "تطبيق كابتن التوصيل",
+                                text = "كابتن التوصيل",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )

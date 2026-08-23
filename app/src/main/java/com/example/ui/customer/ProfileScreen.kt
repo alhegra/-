@@ -35,6 +35,8 @@ import com.example.ui.theme.*
 fun ProfileScreen(
     user: User,
     savedAddresses: List<Address>,
+    isEnglish: Boolean = false,
+    onToggleLanguage: () -> Unit = {},
     onSavedAddressesClick: () -> Unit,
     onRoleSwitcherClick: () -> Unit,
     onRestaurantPortalClick: () -> Unit = {},
@@ -159,6 +161,46 @@ fun ProfileScreen(
                             imageVector = Icons.Default.ArrowBack, // RTL forward
                             contentDescription = null,
                             tint = Color(0xFF92400E)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Language Switcher Tile
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onToggleLanguage() }
+                        .testTag("profile_language_toggle")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = if (isEnglish) "🇬🇧" else "🇪🇬", fontSize = 24.sp)
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEnglish) "Language: English (lo2ma)" else "لغة التطبيق: العربية (لقمة)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF166534)
+                            )
+                            Text(
+                                text = if (isEnglish) "Switch to Arabic (لقمة)" else "التبديل إلى الإنجليزية (lo2ma)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF166534).copy(alpha = 0.8f)
+                            )
+                        }
+                        Switch(
+                            checked = isEnglish,
+                            onCheckedChange = { onToggleLanguage() },
+                            colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF16A34A))
                         )
                     }
                 }

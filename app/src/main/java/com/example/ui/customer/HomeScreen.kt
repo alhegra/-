@@ -266,7 +266,7 @@ fun HomeScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "مساعد مينيو الذكي (AI) 🤖",
+                            text = "مساعد لقمة الذكي (AI) 🤖",
                             style = MaterialTheme.typography.titleMedium,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,

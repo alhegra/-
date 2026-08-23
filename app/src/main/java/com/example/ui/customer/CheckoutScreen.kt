@@ -411,7 +411,7 @@ fun CheckoutScreen(
                                     }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "صفحة دفع آمنة (Paymob Hosted Checkout) - لا يتم تخزين أي بيانات كارت في التطبيق",
+                                        text = "صفحة دفع آمنة (Paymob Hosted Checkout) - لا يتم تخزين أي بيانات كارت في لقمة",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MinyooSlateLight
                                     )

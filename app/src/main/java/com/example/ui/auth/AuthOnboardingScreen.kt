@@ -55,6 +55,8 @@ enum class AuthScreenMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthOnboardingScreen(
+    isEnglish: Boolean = false,
+    onToggleLanguage: () -> Unit = {},
     onLogin: suspend (identifier: String, password: String) -> LoginResult,
     onCustomerRegistered: (name: String, phone: String, password: String, city: String) -> LoginResult,
     onRestaurantRegistered: (RestaurantRegistrationData, password: String) -> LoginResult,
@@ -129,7 +131,21 @@ fun AuthOnboardingScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            // Language Switcher at Top
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = onToggleLanguage,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MinyooOrangePrimary),
+                    modifier = Modifier.testTag("auth_lang_toggle")
+                ) {
+                    Text(text = if (isEnglish) "🇪🇬 العربية" else "🇬🇧 English", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Brand Header Logo
             Surface(
@@ -139,7 +155,7 @@ fun AuthOnboardingScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.lo2ma_logo),
-                    contentDescription = "شعار التطبيق",
+                    contentDescription = "شعار لقمة",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -148,7 +164,7 @@ fun AuthOnboardingScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "تطبيق لقمة - Lo2ma",
+                text = if (isEnglish) "lo2ma" else "لقمة",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF111827),

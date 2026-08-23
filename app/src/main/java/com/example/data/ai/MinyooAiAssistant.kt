@@ -66,7 +66,7 @@ class MinyooAiAssistant {
         val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey"
 
         val systemPrompt = """
-            أنت مساعد ذكي لتطبيق MINYOO لطلب الطعام في مصر. 
+            أنت مساعد ذكي لقمة لطلب الطعام في مصر. 
             المستخدم سيطلب منك اقتراح أكل بمواصفات معينة (ميزانية، عدد أشخاص، نوع أكل، حار أو بارد، حلو أو حادق).
             قائمة المطاعم المتاحة: ${restaurants.joinToString { "${it.id}: ${it.name} (${it.cuisines.joinToString()})" }}
             قائمة الأكلات المتاحة: ${products.joinToString { "${it.id}: ${it.name} من مطعم ${it.restaurantId} بسعر ${it.price} ج" }}
@@ -133,7 +133,7 @@ class MinyooAiAssistant {
             val total = matchedProds.sumOf { it.price } + rest.deliveryFee + 5.0
             suggestions.add(
                 AiMealSuggestion(
-                    title = item.optString("title", "وجبة مينيو المقترحة"),
+                    title = item.optString("title", "وجبة لقمة المقترحة"),
                     description = item.optString("description", "تشكيلة مختارة تناسب طلبك"),
                     restaurantId = rest.id,
                     restaurantName = rest.name,
