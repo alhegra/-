@@ -11,9 +11,9 @@ import kotlin.coroutines.resumeWithException
 /**
  * Production authentication boundary.
  *
- * The client never chooses an elevated role. Role is read from the server-side
- * users/{uid} document. Admin/restaurant/courier elevation must be performed
- * by trusted backend code or an administrator.
+ * Firebase Authentication is the identity authority. The client never chooses
+ * an elevated role. Authorization role is read from users/{uid} and must be
+ * explicitly present and valid. Missing/invalid profiles fail closed.
  */
 class ProductionAuth(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -39,7 +39,6 @@ class ProductionAuth(
         val result = awaitTask(auth.createUserWithEmailAndPassword(email.trim(), password))
         val uid = requireNotNull(result.user?.uid)
 
-        // Every public registration creates a customer. Elevated roles are server-controlled.
         awaitTask(
             firestore.collection("users").document(uid).set(
                 mapOf(
@@ -60,13 +59,22 @@ class ProductionAuth(
         require(email.isNotBlank()) { "Email is required" }
         require(password.isNotBlank()) { "Password is required" }
         val result = awaitTask(auth.signInWithEmailAndPassword(email.trim(), password))
-        requireNotNull(result.user?.uid)
+        val uid = requireNotNull(result.user?.uid)
+
+        // Resolve authorization immediately and fail closed if the account has
+        // no valid server-side profile. This prevents an authenticated identity
+        // from becoming an implicitly authorized application user.
+        getServerRole(uid).getOrThrow()
+        uid
     }
 
     suspend fun getServerRole(uid: String = requireNotNull(currentUid)): Result<UserRole> = runCatching {
         val snapshot = awaitTask(firestore.collection("users").document(uid).get())
-        val roleName = snapshot.getString("role") ?: UserRole.CUSTOMER.name
-        UserRole.entries.firstOrNull { it.name == roleName } ?: UserRole.CUSTOMER
+        require(snapshot.exists()) { "User profile is not provisioned" }
+        val roleName = snapshot.getString("role")
+        require(!roleName.isNullOrBlank()) { "User role is not provisioned" }
+        UserRole.entries.firstOrNull { it.name == roleName }
+            ?: error("Invalid server role")
     }
 
     fun signOut() {
