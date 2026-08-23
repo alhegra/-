@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.example.ui.MinyooApp
+import com.example.ui.ProductionAppEntry
 import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
@@ -30,12 +31,14 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalLayoutDirection provides if (isEnglish) LayoutDirection.Ltr else LayoutDirection.Rtl
                 ) {
-                    MinyooApp(
-                        themeMode = themeMode,
-                        onThemeModeChanged = { themeMode = it },
-                        isEnglish = isEnglish,
-                        onToggleLanguage = { isEnglish = !isEnglish }
-                    )
+                    ProductionAppEntry {
+                        MinyooApp(
+                            themeMode = themeMode,
+                            onThemeModeChanged = { themeMode = it },
+                            isEnglish = isEnglish,
+                            onToggleLanguage = { isEnglish = !isEnglish }
+                        )
+                    }
                 }
             }
         }
