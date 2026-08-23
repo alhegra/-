@@ -1,0 +1,86 @@
+rules_version = '2';
+
+// Lo2ma production baseline.
+// IMPORTANT: deploy only after Firebase Authentication is enabled and the
+// client has been migrated away from local-only authorization.
+// Default is deny. Public catalog reads are intentionally limited.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isRestaurantOwner(restaurantId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/restaurants/$(restaurantId)).data.ownerId == request.auth.uid;
+    }
+
+    function isCourier() {
+      return signedIn() && request.auth.token.role == 'COURIER';
+    }
+
+    // Catalog: public read, server/admin writes only.
+    match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin()
+        || (signedIn() && isRestaurantOwner(request.resource.data.restaurantId));
+    }
+
+    // User documents: users can only read their own profile.
+    // Sensitive role/admin fields must be controlled by trusted backend code.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Orders: customer sees own orders, restaurant sees its orders,
+    // assigned courier sees assigned orders, admin sees everything.
+    // Order creation/status/payment mutation should ultimately be done by
+    // trusted backend code; client writes are intentionally blocked here.
+    match /orders/{orderId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.customerId == request.auth.uid)
+        || (signedIn() && isRestaurantOwner(resource.data.restaurantId))
+        || (isCourier() && resource.data.courierId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Reviews are publicly readable, but only trusted backend/admin may write
+    // until verified-purchase validation is implemented server-side.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Support tickets are private to their owner/admin.
+    match /supportTickets/{ticketId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Everything else is denied until explicitly reviewed and added.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
