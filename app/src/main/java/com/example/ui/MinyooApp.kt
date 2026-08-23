@@ -6,8 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.example.ui.auth.ProductionAuthScreen
 import com.example.security.ProductionSessionManager
+import com.example.ui.auth.ProductionAuthScreen
 
 /**
  * Production authentication boundary. The existing application UI remains
@@ -35,8 +35,11 @@ fun ProductionAppEntry(
         checking -> Unit
         authenticated -> content()
         else -> ProductionAuthScreen(
-            onAuthenticated = {
-                authenticated = true
+            onAuthenticated = { uid ->
+                // ProductionAuth has already verified the server-side profile
+                // before invoking this callback. Keep the UID only as the
+                // identity transition signal; authorization remains server-side.
+                authenticated = uid.isNotBlank()
             }
         )
     }
