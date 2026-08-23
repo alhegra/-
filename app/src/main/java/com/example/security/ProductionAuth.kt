@@ -1,16 +1,19 @@
 package com.example.security
 
 import com.example.data.model.UserRole
+import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Production authentication boundary.
  *
- * Important: the client never chooses an elevated role. Role is read from the
- * server-side users/{uid} document. Admin/restaurant/courier elevation must be
- * performed by trusted backend code or an administrator.
+ * The client never chooses an elevated role. Role is read from the server-side
+ * users/{uid} document. Admin/restaurant/courier elevation must be performed
+ * by trusted backend code or an administrator.
  */
 class ProductionAuth(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -33,20 +36,22 @@ class ProductionAuth(
         require(name.isNotBlank()) { "Name is required" }
         require(phone.isNotBlank()) { "Phone is required" }
 
-        val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+        val result = awaitTask(auth.createUserWithEmailAndPassword(email.trim(), password))
         val uid = requireNotNull(result.user?.uid)
 
-        // New accounts are ALWAYS customers. Elevated roles are server-controlled.
-        firestore.collection("users").document(uid).set(
-            mapOf(
-                "uid" to uid,
-                "email" to email.trim(),
-                "name" to name.trim(),
-                "phone" to phone.trim(),
-                "role" to UserRole.CUSTOMER.name,
-                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+        // Every public registration creates a customer. Elevated roles are server-controlled.
+        awaitTask(
+            firestore.collection("users").document(uid).set(
+                mapOf(
+                    "uid" to uid,
+                    "email" to email.trim(),
+                    "name" to name.trim(),
+                    "phone" to phone.trim(),
+                    "role" to UserRole.CUSTOMER.name,
+                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
             )
-        ).await()
+        )
 
         uid
     }
@@ -54,17 +59,25 @@ class ProductionAuth(
     suspend fun signIn(email: String, password: String): Result<String> = runCatching {
         require(email.isNotBlank()) { "Email is required" }
         require(password.isNotBlank()) { "Password is required" }
-        val result = auth.signInWithEmailAndPassword(email.trim(), password).await()
+        val result = awaitTask(auth.signInWithEmailAndPassword(email.trim(), password))
         requireNotNull(result.user?.uid)
     }
 
     suspend fun getServerRole(uid: String = requireNotNull(currentUid)): Result<UserRole> = runCatching {
-        val snapshot = firestore.collection("users").document(uid).get().await()
+        val snapshot = awaitTask(firestore.collection("users").document(uid).get())
         val roleName = snapshot.getString("role") ?: UserRole.CUSTOMER.name
         UserRole.entries.firstOrNull { it.name == roleName } ?: UserRole.CUSTOMER
     }
 
     fun signOut() {
         auth.signOut()
+    }
+
+    private suspend fun <T> awaitTask(task: Task<T>): T = suspendCancellableCoroutine { continuation ->
+        task.addOnSuccessListener { value ->
+            if (continuation.isActive) continuation.resume(value)
+        }.addOnFailureListener { error ->
+            if (continuation.isActive) continuation.resumeWithException(error)
+        }
     }
 }
