@@ -306,7 +306,7 @@ fun PaymobHostedCheckoutScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "التاجر: MINYOO EGYPT (مينيو مصر)",
+                                    text = "التاجر: initial (Profile PK: 1218391)",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = PaymobDarkBlue

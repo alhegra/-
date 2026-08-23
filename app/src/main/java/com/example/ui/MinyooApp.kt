@@ -50,8 +50,10 @@ fun MinyooApp() {
     val context = LocalContext.current
     val repository = remember { MinyooRepository.getInstance(context) }
     val coroutineScope = rememberCoroutineScope()
+    val isConnected by rememberNetworkConnectivityState()
 
     // State collections
+
     val hasActiveSession by repository.hasActiveSession.collectAsState()
     val currentUser by repository.currentUser.collectAsState()
     val currentAddress by repository.selectedAddress.collectAsState()
@@ -82,31 +84,37 @@ fun MinyooApp() {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // If no active session, show Initial Login / Registration Onboarding Screen
-    if (!hasActiveSession) {
-        AuthOnboardingScreen(
-            onLogin = { ident, pass ->
-                val res = repository.login(ident, pass)
-                if (res is LoginResult.Success && res.user.role == UserRole.CUSTOMER) {
-                    currentScreen = Screen.Home
-                }
-                res
-            },
-            onCustomerRegistered = { name, phone, pass, city ->
-                val res = repository.registerCustomer(name, phone, pass, city)
-                currentScreen = Screen.Home
-                res
-            },
-            onRestaurantRegistered = { data, pass ->
-                repository.registerRestaurant(data, pass)
-            }
-        )
-        return
-    }
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (!isConnected) {
+            OfflineBanner()
+        }
 
-    // When role changes away from CUSTOMER, render appropriate partner portal
-    when (currentUser.role) {
-        UserRole.RESTAURANT_OWNER -> {
+        Box(modifier = Modifier.weight(1f)) {
+            // If no active session, show Initial Login / Registration Onboarding Screen
+            if (!hasActiveSession) {
+                AuthOnboardingScreen(
+                    onLogin = { ident, pass ->
+                        val res = repository.login(ident, pass)
+                        if (res is LoginResult.Success && res.user.role == UserRole.CUSTOMER) {
+                            currentScreen = Screen.Home
+                        }
+                        res
+                    },
+                    onCustomerRegistered = { name, phone, pass, city ->
+                        val res = repository.registerCustomer(name, phone, pass, city)
+                        currentScreen = Screen.Home
+                        res
+                    },
+                    onRestaurantRegistered = { data, pass ->
+                        repository.registerRestaurant(data, pass)
+                    },
+                    onCourierRegistered = { name, phone, pass, city ->
+                        repository.registerCourier(name, phone, pass, city)
+                    }
+                )
+            } else {
+                when (currentUser.role) {
+                    UserRole.RESTAURANT_OWNER -> {
             val regRest = currentUser.registeredRestaurant
             if (regRest != null && regRest.status == RestaurantStatus.PENDING) {
                 RestaurantUnderReviewScreen(
@@ -507,7 +515,7 @@ fun MinyooApp() {
                         is Screen.Notifications -> {
                             NotificationsScreen(
                                 notifications = notifications,
-                                onBackClick = { currentScreen = Screen.Home }
+                                onBackClick = { currentScreen = Screen.Profile }
                             )
                         }
                     }
@@ -518,7 +526,9 @@ fun MinyooApp() {
                 }
             }
         }
+      }
     }
+  }
 
     // Modal Sheet: Product Customization
     selectedProductForCustomization?.let { (product, restaurant) ->
@@ -555,4 +565,6 @@ fun MinyooApp() {
             onLogout = { repository.logoutSession() }
         )
     }
+  }
 }
+

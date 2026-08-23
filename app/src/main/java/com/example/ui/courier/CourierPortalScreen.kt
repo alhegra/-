@@ -65,7 +65,12 @@ fun CourierPortalScreen(
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🛵", fontSize = 24.sp)
+                            Icon(
+                                imageVector = Icons.Default.DeliveryDining,
+                                contentDescription = null,
+                                tint = MinyooOrangePrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "تطبيق كابتن التوصيل",
@@ -229,11 +234,11 @@ fun CourierPortalScreen(
                             ) {
                                 Text(
                                     text = when (activeDelivery.status) {
-                                        OrderStatus.PREPARING -> "تم الوصول للمطعم واستلام الأكل 🛵"
-                                        OrderStatus.COURIER_ASSIGNED -> "استلام الطلب من الشيف 📦"
-                                        OrderStatus.PICKED_UP -> "بدء التحرك لعنوان العميل 🚀"
-                                        OrderStatus.OUT_FOR_DELIVERY -> "تم التسليم للعميل بنجاح واستلام المبلغ ✅"
-                                        else -> "تحديث حالة التوصيل ⏩"
+                                        OrderStatus.PREPARING -> "تم الوصول للمطعم واستلام الأكل"
+                                        OrderStatus.COURIER_ASSIGNED -> "استلام الطلب من الشيف"
+                                        OrderStatus.PICKED_UP -> "بدء التحرك لعنوان العميل"
+                                        OrderStatus.OUT_FOR_DELIVERY -> "تم التسليم للعميل بنجاح واستلام المبلغ"
+                                        else -> "تحديث حالة التوصيل"
                                     },
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleSmall
@@ -253,7 +258,12 @@ fun CourierPortalScreen(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "☕", fontSize = 48.sp)
+                            Icon(
+                                imageVector = Icons.Default.LocalCafe,
+                                contentDescription = null,
+                                tint = MinyooOrangePrimary,
+                                modifier = Modifier.size(48.dp)
+                            )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "لا يوجد طلب قيد التوصيل الآن",

@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -26,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -270,18 +276,30 @@ fun CategoryGridItem(
     }
 }
 
+fun getCategoryIcon(category: String): ImageVector {
+    return when (category) {
+        "برجر" -> Icons.Filled.Fastfood
+        "بيتزا وفطير" -> Icons.Filled.LocalPizza
+        "كافيهات وعصائر" -> Icons.Filled.LocalCafe
+        "حلويات وآيس كريم" -> Icons.Filled.Cake
+        else -> Icons.Filled.Restaurant
+    }
+}
+
 @Composable
 fun CategoryChipItem(
     title: String,
-    emoji: String,
+    icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val bgColor by animateColorAsState(
-        if (isSelected) MinyooOrangePrimary else MinyooSurfaceLight
+        if (isSelected) MinyooOrangePrimary else MinyooSurfaceLight,
+        label = "bgColor"
     )
     val contentColor by animateColorAsState(
-        if (isSelected) Color.White else MinyooCharcoal
+        if (isSelected) Color.White else MinyooCharcoal,
+        label = "contentColor"
     )
 
     Surface(
@@ -302,7 +320,12 @@ fun CategoryChipItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
-            Text(text = emoji, fontSize = 16.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = title,
@@ -904,4 +927,110 @@ fun OrderSuccessAnimationOverlay(
         }
     }
 }
+
+/**
+ * Helper to observe network connectivity using ConnectivityManager
+ */
+@Composable
+fun rememberNetworkConnectivityState(): State<Boolean> {
+    val context = LocalContext.current
+    val isConnectedState = remember { mutableStateOf(true) }
+
+    DisposableEffect(context) {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                isConnectedState.value = true
+            }
+            override fun onLost(network: android.net.Network) {
+                isConnectedState.value = false
+            }
+            override fun onCapabilitiesChanged(network: android.net.Network, networkCapabilities: android.net.NetworkCapabilities) {
+                val hasInternet = networkCapabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                isConnectedState.value = hasInternet
+            }
+        }
+
+        val request = android.net.NetworkRequest.Builder()
+            .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        val activeNetwork = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val initialConnected = capabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        isConnectedState.value = initialConnected
+
+        try {
+            connectivityManager.registerNetworkCallback(request, callback)
+        } catch (_: Exception) {}
+
+        onDispose {
+            try {
+                connectivityManager.unregisterNetworkCallback(callback)
+            } catch (_: Exception) {}
+        }
+    }
+
+    return isConnectedState
+}
+
+/**
+ * Dedicated Offline Banner UI component shown when network connectivity is lost
+ */
+@Composable
+fun OfflineBanner() {
+    Surface(
+        color = Color(0xFFFEF2F2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFFCA5A5))
+            .testTag("offline_banner")
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFEE2E2))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudOff,
+                        contentDescription = "غير متصل بالإنترنت",
+                        tint = Color(0xFFDC2626),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "اتصال بالإنترنت غير متوفر (Offline Mode)",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF991B1B),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "يتم استخدام التخزين المحلي الآمن. ستتم المزامنة فور عودة الاتصال.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFB91C1C),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
 

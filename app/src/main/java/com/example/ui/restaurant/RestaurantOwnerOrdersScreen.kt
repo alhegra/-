@@ -230,7 +230,7 @@ fun RestaurantOwnerOrdersScreen(
                                 .clickable { filterOnlyNewOrders = true }
                         ) {
                             Text(
-                                text = "الجديدة فقط ✨",
+                                text = "الجديدة فقط",
                                 color = if (filterOnlyNewOrders) Color.White else Color(0xFF94A3B8),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -398,7 +398,7 @@ fun RestaurantOrderItemCard(
                                 color = Color(0xFFEF4444)
                             ) {
                                 Text(
-                                    text = "جديد 🔔",
+                                    text = "جديد",
                                     color = Color.White,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
@@ -759,10 +759,10 @@ fun SingleStatusAdvanceButton(
                     .testTag("rest_advance_btn_CONFIRMED")
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "🍳", fontSize = 20.sp)
+                    Icon(imageVector = Icons.Default.Restaurant, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "2️⃣ جاري التحضير في المطبخ 🔥",
+                        text = "جاري التحضير في المطبخ",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -784,7 +784,7 @@ fun SingleStatusAdvanceButton(
                     Icon(imageVector = Icons.Default.TwoWheeler, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "3️⃣ جاهز للتوصيل (تسليم الكابتن) 🛵",
+                        text = "جاهز للتوصيل (تسليم الكابتن)",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black
                     )
@@ -806,7 +806,7 @@ fun SingleStatusAdvanceButton(
                     Icon(imageVector = Icons.Default.DirectionsRun, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "4️⃣ في الطريق إلى العميل 🚀",
+                        text = "في الطريق إلى العميل",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black
                     )

@@ -81,7 +81,7 @@ fun RestaurantUnderReviewScreen(
                 color = Color(0xFFFEF3C7)
             ) {
                 Text(
-                    text = "طلبك قيد المراجعة والتدقيق ⏳",
+                    text = "طلبك قيد المراجعة والتدقيق",
                     color = Color(0xFFB45309),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
@@ -92,7 +92,7 @@ fun RestaurantUnderReviewScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "مرحباً بإدارة $restName 👨‍🍳",
+                text = "مرحباً بإدارة $restName",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -131,7 +131,12 @@ fun RestaurantUnderReviewScreen(
                             modifier = Modifier.size(50.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(text = restLogo, fontSize = 26.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = MinyooOrangePrimary,
+                                    modifier = Modifier.size(26.dp)
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.width(14.dp))
@@ -156,7 +161,7 @@ fun RestaurantUnderReviewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "📍 النطاق الجغرافي:",
+                            text = "النطاق الجغرافي:",
                             style = MaterialTheme.typography.bodySmall,
                             color = MinyooSlateLight
                         )
@@ -251,7 +256,12 @@ fun RestaurantUnderReviewScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("⚡", fontSize = 20.sp)
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "موافقة الأدمن الفورية للتجربة (Admin Instant Approval)",
@@ -278,7 +288,7 @@ fun RestaurantUnderReviewScreen(
                             .testTag("admin_instant_approve_btn")
                     ) {
                         Text(
-                            text = "اعتماد المطعم والدخول للوحة التحكم 🚀",
+                            text = "اعتماد المطعم والدخول للوحة التحكم",
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )

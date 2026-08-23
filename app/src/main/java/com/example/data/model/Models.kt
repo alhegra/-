@@ -25,7 +25,7 @@ data class RestaurantRegistrationData(
     val phone: String,
     val cityArea: String,
     val cuisine: String = "أطباق شرقية وسريعة",
-    val logoIcon: String = "🍔",
+    val logoIcon: String = "Storefront",
     val minOrder: Double = 50.0,
     val deliveryTimeMinutes: Int = 30,
     val status: RestaurantStatus = RestaurantStatus.PENDING,

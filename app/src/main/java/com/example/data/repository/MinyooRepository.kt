@@ -250,52 +250,7 @@ class MinyooRepository(
                 database.reviewDao().insertAll(seedReviews)
             }
 
-            // Prepopulate seed user accounts if empty
-            val userCount = database.userAccountDao().countUsers()
-            if (userCount == 0) {
-                val seedUsers = listOf(
-                    // 1. MASTER ADMIN ACCOUNT (Provisioned securely directly in Database, inaccessible from public registration)
-                    UserAccountEntity(
-                        id = "usr_admin_master_super_01",
-                        identifier = "admin@lo2ma.click",
-                        name = "إدارة النظام المركزية (Super Admin)",
-                        phone = "01000000000",
-                        email = "admin@lo2ma.click",
-                        passwordHash = "Admin@Lo2ma#Secure992",
-                        role = UserRole.ADMIN,
-                        cityArea = "المقر الرئيسي - القاهرة"
-                    ),
-                    // 2. DEMO CUSTOMER ACCOUNT
-                    UserAccountEntity(
-                        id = "usr_cust_demo_01",
-                        identifier = "01098765432",
-                        name = "أحمد مصطفى",
-                        phone = "01098765432",
-                        email = "ahmed@lo2ma.click",
-                        passwordHash = "123456",
-                        role = UserRole.CUSTOMER,
-                        cityArea = "القاهرة - المعادي"
-                    ),
-                    // 3. DEMO RESTAURANT ACCOUNT
-                    UserAccountEntity(
-                        id = "usr_rest_demo_01",
-                        identifier = "01012345678",
-                        name = "إدارة كشري أبو طارق",
-                        phone = "01012345678",
-                        email = "koshary@lo2ma.click",
-                        passwordHash = "123456",
-                        role = UserRole.RESTAURANT_OWNER,
-                        restaurantName = "كشري أبو طارق",
-                        restaurantStatus = RestaurantStatus.APPROVED,
-                        cityArea = "القاهرة - وسط البلد",
-                        cuisine = "كشري ومأكولات مصرية 🍲",
-                        logoIcon = "🍲",
-                        minOrder = 40.0,
-                        deliveryTimeMinutes = 25
-                    )
-                )
-                database.userAccountDao().insertAll(seedUsers)
-            }
+            // No pre-seeded demo accounts. Users must register from scratch.
 
             // Prepopulate addresses if empty
             val existing = database.addressDao().getAllAddresses().first()
@@ -377,20 +332,7 @@ class MinyooRepository(
         // Database lookup
         var userAcc = database.userAccountDao().findByIdentifier(cleanIdent)
 
-        // Safety fallback for master admin account if database is refreshing
-        if (userAcc == null && (cleanIdent == "admin@lo2ma.click" || cleanIdent == "01000000000" || cleanIdent == "admin")) {
-            userAcc = UserAccountEntity(
-                id = "usr_admin_master_super_01",
-                identifier = "admin@lo2ma.click",
-                name = "إدارة النظام المركزية (Super Admin)",
-                phone = "01000000000",
-                email = "admin@lo2ma.click",
-                passwordHash = "Admin@Lo2ma#Secure992",
-                role = UserRole.ADMIN,
-                cityArea = "المقر الرئيسي - القاهرة"
-            )
-            database.userAccountDao().insertUser(userAcc)
-        }
+
 
         if (userAcc == null) {
             return LoginResult.Error("لم يتم العثور على حساب مسجل بهذا الرقم أو البريد الإلكتروني.")
@@ -424,6 +366,7 @@ class MinyooRepository(
         )
 
         _currentUser.value = userObj
+        saveFcmTokenForUser(userObj.id)
 
         if (regData != null) {
             scope.launch {
@@ -516,6 +459,7 @@ class MinyooRepository(
             selectedAddressId = newAddress.id
         )
         _currentUser.value = userObj
+        saveFcmTokenForUser(userObj.id)
 
         scope.launch {
             database.userAccountDao().insertUser(userAcc)
@@ -611,6 +555,7 @@ class MinyooRepository(
             registeredRestaurant = data
         )
         _currentUser.value = userObj
+        saveFcmTokenForUser(userObj.id)
 
         scope.launch {
             database.userAccountDao().insertUser(userAcc)
@@ -631,6 +576,51 @@ class MinyooRepository(
             ?.putString("rest_cuisine", data.cuisine)
             ?.putString("rest_logo", data.logoIcon)
             ?.putString("rest_status", data.status.name)
+            ?.apply()
+
+        _hasActiveSession.value = true
+        return LoginResult.Success(userObj)
+    }
+
+    fun registerCourier(name: String, phone: String, city: String, password: String = "123456"): LoginResult {
+        val cleanName = name.trim()
+        val cleanPhone = phone.trim()
+        val cleanPass = if (password.trim().isNotBlank()) password.trim() else "123456"
+
+        val userId = "courier_${System.currentTimeMillis()}"
+        val userAcc = UserAccountEntity(
+            id = userId,
+            identifier = cleanPhone,
+            name = cleanName,
+            phone = cleanPhone,
+            email = "$cleanPhone@lo2ma.click",
+            passwordHash = cleanPass,
+            role = UserRole.COURIER,
+            cityArea = city
+        )
+
+        val userObj = User(
+            id = userId,
+            name = cleanName,
+            phone = cleanPhone,
+            email = "$cleanPhone@lo2ma.click",
+            role = UserRole.COURIER
+        )
+        _currentUser.value = userObj
+        saveFcmTokenForUser(userObj.id)
+
+        scope.launch {
+            database.userAccountDao().insertUser(userAcc)
+        }
+
+        prefs?.edit()
+            ?.putBoolean("is_logged_in", true)
+            ?.putString("user_id", userId)
+            ?.putString("user_role", UserRole.COURIER.name)
+            ?.putString("user_name", cleanName)
+            ?.putString("user_phone", cleanPhone)
+            ?.putString("user_email", "$cleanPhone@lo2ma.click")
+            ?.putString("user_city", city)
             ?.apply()
 
         _hasActiveSession.value = true
@@ -1210,6 +1200,27 @@ class MinyooRepository(
         } catch (e: Exception) {
             // Graceful fallback to local Room and seed data if Firestore is unconfigured or offline
         }
+    }
+
+    private fun saveFcmTokenForUser(userId: String) {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                if (!token.isNullOrBlank()) {
+                    val firestore = FirebaseFirestore.getInstance()
+                    val userMap = hashMapOf(
+                        "id" to userId,
+                        "name" to _currentUser.value.name,
+                        "phone" to _currentUser.value.phone,
+                        "email" to _currentUser.value.email,
+                        "role" to _currentUser.value.role.name,
+                        "fcmToken" to token,
+                        "updatedAt" to System.currentTimeMillis()
+                    )
+                    firestore.collection("users").document(userId)
+                        .set(userMap, com.google.firebase.firestore.SetOptions.merge())
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     companion object {

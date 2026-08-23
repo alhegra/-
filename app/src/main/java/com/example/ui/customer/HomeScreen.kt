@@ -35,6 +35,7 @@ import com.example.ui.components.CategoryChipItem
 import com.example.ui.components.CategoryGridItem
 import com.example.ui.components.ProductCardItem
 import com.example.ui.components.RestaurantCard
+import com.example.ui.components.getCategoryIcon
 import com.example.ui.theme.*
 
 @Composable
@@ -298,10 +299,10 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                items(SeedData.categories) { (catName, emoji) ->
+                items(SeedData.categories) { catName ->
                     CategoryChipItem(
                         title = catName,
-                        emoji = emoji,
+                        icon = getCategoryIcon(catName),
                         isSelected = selectedCategory == catName,
                         onClick = {
                             selectedCategory = if (selectedCategory == catName) "الكل" else catName

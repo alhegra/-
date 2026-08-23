@@ -4,7 +4,6 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -24,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -40,18 +38,18 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.model.LoginResult
 import com.example.data.model.RestaurantRegistrationData
-import com.example.data.model.RestaurantStatus
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 
-enum class MainAuthTab {
-    LOGIN,
-    REGISTER
+enum class RegisterRoleType {
+    CUSTOMER,
+    RESTAURANT,
+    COURIER
 }
 
-enum class RegisterRoleChoice {
-    CUSTOMER,
-    RESTAURANT
+enum class AuthScreenMode {
+    LOGIN,
+    REGISTER
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,11 +57,13 @@ enum class RegisterRoleChoice {
 fun AuthOnboardingScreen(
     onLogin: suspend (identifier: String, password: String) -> LoginResult,
     onCustomerRegistered: (name: String, phone: String, password: String, city: String) -> LoginResult,
-    onRestaurantRegistered: (RestaurantRegistrationData, password: String) -> LoginResult
+    onRestaurantRegistered: (RestaurantRegistrationData, password: String) -> LoginResult,
+    onCourierRegistered: (name: String, phone: String, password: String, city: String) -> LoginResult
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var selectedTab by remember { mutableStateOf(MainAuthTab.LOGIN) }
-    var registerChoice by remember { mutableStateOf(RegisterRoleChoice.CUSTOMER) }
+    
+    var authMode by remember { mutableStateOf(AuthScreenMode.LOGIN) }
+    var registerRole by remember { mutableStateOf(RegisterRoleType.CUSTOMER) }
 
     // Login Form State
     var loginIdentifier by remember { mutableStateOf("") }
@@ -72,13 +72,14 @@ fun AuthOnboardingScreen(
     var loginLoading by remember { mutableStateOf(false) }
     var loginError by remember { mutableStateOf<String?>(null) }
 
-    // Customer Register Form State
-    var custName by remember { mutableStateOf("") }
-    var custPhone by remember { mutableStateOf("") }
-    var custPass by remember { mutableStateOf("") }
-    var isCustPassVisible by remember { mutableStateOf(false) }
-    var custCity by remember { mutableStateOf("القاهرة - المعادي") }
-    var custError by remember { mutableStateOf<String?>(null) }
+    // Customer / Courier Register Form State
+    var regName by remember { mutableStateOf("") }
+    var regPhone by remember { mutableStateOf("") }
+    var regPass by remember { mutableStateOf("") }
+    var isRegPassVisible by remember { mutableStateOf(false) }
+    var regCity by remember { mutableStateOf("القاهرة - المعادي") }
+    var regError by remember { mutableStateOf<String?>(null) }
+    var regLoading by remember { mutableStateOf(false) }
 
     // Restaurant Register Form State
     var restName by remember { mutableStateOf("") }
@@ -86,11 +87,12 @@ fun AuthOnboardingScreen(
     var restPass by remember { mutableStateOf("") }
     var isRestPassVisible by remember { mutableStateOf(false) }
     var restCity by remember { mutableStateOf("القاهرة - التجمع الخامس") }
-    var restCuisine by remember { mutableStateOf("مأكولات شرقية ومشويات 🍖") }
+    var restCuisine by remember { mutableStateOf("مأكولات شرقية ومشويات") }
     var restLogoIcon by remember { mutableStateOf("🍔") }
     var restMinOrder by remember { mutableStateOf("50") }
     var restPrepTime by remember { mutableStateOf("30") }
     var restError by remember { mutableStateOf<String?>(null) }
+    var restLoading by remember { mutableStateOf(false) }
 
     val popularCities = listOf(
         "القاهرة - المعادي",
@@ -99,36 +101,24 @@ fun AuthOnboardingScreen(
         "الجيزة - الدقي والمهندسين",
         "الجيزة - الشيخ زايد و6 أكتوبر",
         "الإسكندرية - سموحة ومحرم بك",
-        "المنصورة - حي الجامعة",
-        "طنطا - شارع النحاس",
-        "الزقازيق - القومية"
+        "المنصورة - حي الجامعة"
     )
 
     val cuisinesList = listOf(
-        "برجر وساندوتشات 🍔",
-        "مأكولات شرقية ومشويات 🍖",
-        "بيتزا وفطائر 🍕",
-        "شاورما ودجاج مقرمش 🍗",
-        "مأكولات بحرية وسوشي 🍣",
-        "حلويات ومخبوزات 🍰",
-        "كشري ومأكولات مصرية 🍲",
-        "عصائر ومشروبات 🥤"
+        "برجر وساندوتشات",
+        "مأكولات شرقية ومشويات",
+        "بيتزا وفطائر",
+        "شاورما ودجاج مقرمش",
+        "مأكولات بحرية وسوشي",
+        "كشري ومأكولات مصرية"
     )
 
-    val logoIcons = listOf("🍔", "🍕", "🍗", "🍖", "🌯", "🍲", "🍣", "🌮", "🍰", "☕", "🥗", "🥪")
+    val logoIcons = listOf("🍔", "🍕", "🍗", "🍖", "🌯", "🍲", "🍣", "🌮")
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFFFF7ED),
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.background
-                    )
-                )
-            )
+    // Solid clean surface with high contrast text colors
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color(0xFFFFFFFF)
     ) {
         Column(
             modifier = Modifier
@@ -136,1046 +126,614 @@ fun AuthOnboardingScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top App Brand Header
-            Spacer(modifier = Modifier.height(8.dp))
-
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Brand Header Logo
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MinyooOrangePrimary,
-                shadowElevation = 8.dp,
-                modifier = Modifier.size(80.dp)
+                modifier = Modifier.size(72.dp)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.lo2ma_logo),
-                    contentDescription = "شعار لقمة الرسمي",
+                    contentDescription = "شعار التطبيق",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             Text(
-                text = "لقمة",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Black,
-                color = MinyooOrangePrimary,
-                letterSpacing = 1.sp
-            )
-
-            Text(
-                text = "lo2ma.click",
-                style = MaterialTheme.typography.labelMedium,
+                text = "تطبيق لقمة - Lo2ma",
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MinyooSlateLight
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "المنصة الموحدة لطلب الطعام وإدارة المطاعم في مصر 🇪🇬",
-                style = MaterialTheme.typography.bodySmall,
-                color = MinyooSlateMuted,
-                fontWeight = FontWeight.Medium,
+                color = Color(0xFF111827),
                 textAlign = TextAlign.Center
             )
+            
+            Text(
+                text = if (authMode == AuthScreenMode.LOGIN) "تسجيل الدخول إلى حسابك" else "إنشاء حساب جديد",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF4B5563),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
+            )
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Main Tab Selector: [تسجيل الدخول] vs [إنشاء حساب جديد]
+            // Mode Switcher (Login vs Register)
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF3F4F6),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(4.dp)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Login Tab
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (selectedTab == MainAuthTab.LOGIN) MinyooOrangePrimary else Color.Transparent,
-                        shadowElevation = if (selectedTab == MainAuthTab.LOGIN) 2.dp else 0.dp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                selectedTab = MainAuthTab.LOGIN
-                                loginError = null
-                            }
-                            .testTag("tab_login")
+                    Button(
+                        onClick = { 
+                            authMode = AuthScreenMode.LOGIN
+                            loginError = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (authMode == AuthScreenMode.LOGIN) Color.White else Color.Transparent,
+                            contentColor = if (authMode == AuthScreenMode.LOGIN) Color(0xFF111827) else Color(0xFF4B5563)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        elevation = if (authMode == AuthScreenMode.LOGIN) ButtonDefaults.buttonElevation(2.dp) else ButtonDefaults.buttonElevation(0.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight().testTag("tab_login")
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = if (selectedTab == MainAuthTab.LOGIN) Color.White else MinyooSlateLight,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "تسجيل الدخول",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (selectedTab == MainAuthTab.LOGIN) Color.White else MinyooSlateLight
-                                )
-                            }
-                        }
+                        Text(text = "تسجيل الدخول", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
 
-                    // Register Tab
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (selectedTab == MainAuthTab.REGISTER) MinyooOrangePrimary else Color.Transparent,
-                        shadowElevation = if (selectedTab == MainAuthTab.REGISTER) 2.dp else 0.dp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                selectedTab = MainAuthTab.REGISTER
-                                custError = null
-                                restError = null
-                            }
-                            .testTag("tab_register")
+                    Button(
+                        onClick = { 
+                            authMode = AuthScreenMode.REGISTER
+                            regError = null
+                            restError = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (authMode == AuthScreenMode.REGISTER) Color.White else Color.Transparent,
+                            contentColor = if (authMode == AuthScreenMode.REGISTER) Color(0xFF111827) else Color(0xFF4B5563)
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        elevation = if (authMode == AuthScreenMode.REGISTER) ButtonDefaults.buttonElevation(2.dp) else ButtonDefaults.buttonElevation(0.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight().testTag("tab_register")
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.PersonAdd,
-                                    contentDescription = null,
-                                    tint = if (selectedTab == MainAuthTab.REGISTER) Color.White else MinyooSlateLight,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "حساب جديد",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (selectedTab == MainAuthTab.REGISTER) Color.White else MinyooSlateLight
-                                )
-                            }
-                        }
+                        Text(text = "حساب جديد", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Tab Content
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "auth_tabs_anim"
-            ) { tab ->
-                when (tab) {
-                    MainAuthTab.LOGIN -> {
-                        // ==========================================
-                        // UNIFIED LOGIN FORM (Customer, Owner, Admin)
-                        // ==========================================
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, MinyooCardBorder, RoundedCornerShape(20.dp))
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp)
-                                ) {
-                                    Text(
-                                        text = "تسجيل الدخول الموحد 🔐",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MinyooCharcoal
-                                    )
-                                    Text(
-                                        text = "أدخل رقم الموبايل أو البريد الإلكتروني وكلمة المرور للدخول لحسابك (عميل، صاحب مطعم، أو لوحة التحكم)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MinyooSlateLight,
-                                        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
-                                    )
+            // Error banner if any
+            val currentError = when {
+                authMode == AuthScreenMode.LOGIN -> loginError
+                registerRole == RegisterRoleType.RESTAURANT -> restError
+                else -> regError
+            }
 
-                                    if (loginError != null) {
-                                        Surface(
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = Color(0xFFFEE2E2),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(bottom = 14.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Warning,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFFDC2626),
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = loginError ?: "",
-                                                    color = Color(0xFFB91C1C),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-                                    }
+            if (currentError != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFFEF2F2),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.ErrorOutline, contentDescription = null, tint = Color(0xFFDC2626))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = currentError,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF991B1B),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
 
-                                    // Identifier (Phone or Email)
-                                    Text(
-                                        text = "رقم الموبايل أو البريد الإلكتروني",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MinyooCharcoal,
-                                        modifier = Modifier.padding(bottom = 6.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = loginIdentifier,
-                                        onValueChange = {
-                                            loginIdentifier = it
-                                            loginError = null
-                                        },
-                                        placeholder = { Text("مثال: 01098765432 أو admin@lo2ma.click") },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.AccountCircle,
-                                                contentDescription = null,
-                                                tint = MinyooOrangePrimary
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (loginIdentifier.isNotEmpty()) {
-                                                IconButton(onClick = { loginIdentifier = "" }) {
-                                                    Icon(Icons.Default.Clear, contentDescription = "مسح")
-                                                }
-                                            }
-                                        },
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Email,
-                                            imeAction = ImeAction.Next
-                                        ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = MinyooOrangePrimary,
-                                            unfocusedBorderColor = Color(0xFFCBD5E1)
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("login_identifier_input")
-                                    )
+            // ==========================================
+            // LOGIN MODE (Unified, no pre-choice needed)
+            // ==========================================
+            if (authMode == AuthScreenMode.LOGIN) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = loginIdentifier,
+                        onValueChange = {
+                            loginIdentifier = it
+                            loginError = null
+                        },
+                        placeholder = { Text("رقم الهاتف أو البريد الإلكتروني", color = Color(0xFF9CA3AF)) },
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MinyooOrangePrimary,
+                            unfocusedBorderColor = Color(0xFFD1D5DB),
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth().testTag("login_identifier_input")
+                    )
 
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    // Password
-                                    Text(
-                                        text = "كلمة المرور",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MinyooCharcoal,
-                                        modifier = Modifier.padding(bottom = 6.dp)
-                                    )
-                                    OutlinedTextField(
-                                        value = loginPassword,
-                                        onValueChange = {
-                                            loginPassword = it
-                                            loginError = null
-                                        },
-                                        placeholder = { Text("أدخل كلمة المرور") },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Lock,
-                                                contentDescription = null,
-                                                tint = MinyooOrangePrimary
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                                Icon(
-                                                    imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = if (isPasswordVisible) "إخفاء كلمة المرور" else "إظهار كلمة المرور",
-                                                    tint = MinyooSlateLight
-                                                )
-                                            }
-                                        },
-                                        singleLine = true,
-                                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Password,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                        keyboardActions = KeyboardActions(
-                                            onDone = {
-                                                if (!loginLoading) {
-                                                    coroutineScope.launch {
-                                                        loginLoading = true
-                                                        val result = onLogin(loginIdentifier, loginPassword)
-                                                        loginLoading = false
-                                                        if (result is LoginResult.Error) {
-                                                            loginError = result.message
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        ),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = MinyooOrangePrimary,
-                                            unfocusedBorderColor = Color(0xFFCBD5E1)
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .testTag("login_password_input")
-                                    )
-
-                                    Spacer(modifier = Modifier.height(20.dp))
-
-                                    // Login Action Button
-                                    Button(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                loginLoading = true
-                                                val result = onLogin(loginIdentifier, loginPassword)
-                                                loginLoading = false
-                                                if (result is LoginResult.Error) {
-                                                    loginError = result.message
-                                                }
-                                            }
-                                        },
-                                        enabled = !loginLoading && loginIdentifier.isNotBlank() && loginPassword.isNotBlank(),
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MinyooOrangePrimary,
-                                            disabledContainerColor = MinyooOrangePrimary.copy(alpha = 0.5f)
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(52.dp)
-                                            .testTag("login_submit_button")
-                                    ) {
-                                        if (loginLoading) {
-                                            CircularProgressIndicator(
-                                                color = Color.White,
-                                                modifier = Modifier.size(24.dp),
-                                                strokeWidth = 2.5.dp
-                                            )
-                                        } else {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Login,
-                                                    contentDescription = null,
-                                                    tint = Color.White
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = "تسجيل الدخول",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    color = Color.White
-                                                )
-                                            }
+                    OutlinedTextField(
+                        value = loginPassword,
+                        onValueChange = {
+                            loginPassword = it
+                            loginError = null
+                        },
+                        placeholder = { Text("كلمة المرور", color = Color(0xFF9CA3AF)) },
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (loginIdentifier.isNotBlank() && loginPassword.isNotBlank()) {
+                                coroutineScope.launch {
+                                    loginLoading = true
+                                    val res = onLogin(loginIdentifier, loginPassword)
+                                    loginLoading = false
+                                    if (res !is LoginResult.Success) {
+                                        loginError = when (res) {
+                                            is LoginResult.Error -> res.message
+                                            else -> "فشل تسجيل الدخول"
                                         }
                                     }
                                 }
                             }
+                        }),
+                        trailingIcon = {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (isPasswordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6B7280)
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MinyooOrangePrimary,
+                            unfocusedBorderColor = Color(0xFFD1D5DB),
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth().testTag("login_password_input")
+                    )
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                            // Quick Demo & Testing Login Cards (Helpful presets for testing)
-                            Card(
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(text = "⚡", fontSize = 18.sp)
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "حسابات جاهزة للاختبار والتجربة السريعة:",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MinyooCharcoal
-                                        )
-                                    }
-                                    Text(
-                                        text = "اضغط على أي حساب لملء بياناته وتسجيل الدخول مباشرة:",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MinyooSlateLight,
-                                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
-                                    )
-
-                                    // Preset 1: Admin
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFFEF2F2),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .clickable {
-                                                loginIdentifier = "admin@lo2ma.click"
-                                                loginPassword = "Admin@Lo2ma#Secure992"
-                                                loginError = null
-                                            }
-                                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(10.dp))
-                                            .padding(10.dp)
-                                            .testTag("quick_fill_admin")
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(text = "🛡️", fontSize = 20.sp)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "حساب الأدمن المركزي (Admin)",
-                                                        fontWeight = FontWeight.Bold,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        color = Color(0xFF991B1B)
-                                                    )
-                                                    Text(
-                                                        text = "admin@lo2ma.click",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = Color(0xFFB91C1C)
-                                                    )
-                                                }
-                                            }
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = Color(0xFFDC2626)
-                                            ) {
-                                                Text(
-                                                    text = "لوحة التحكم ⚙️",
-                                                    color = Color.White,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Preset 2: Customer
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFFFF7ED),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .clickable {
-                                                loginIdentifier = "01098765432"
-                                                loginPassword = "123456"
-                                                loginError = null
-                                            }
-                                            .border(1.dp, Color(0xFFFDBA74), RoundedCornerShape(10.dp))
-                                            .padding(10.dp)
-                                            .testTag("quick_fill_customer")
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(text = "🛍️", fontSize = 20.sp)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "حساب عميل (أحمد مصطفى)",
-                                                        fontWeight = FontWeight.Bold,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        color = MinyooOrangeDark
-                                                    )
-                                                    Text(
-                                                        text = "01098765432 • المعادي",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MinyooSlateLight
-                                                    )
-                                                }
-                                            }
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = MinyooOrangePrimary
-                                            ) {
-                                                Text(
-                                                    text = "واجهة العميل 🛒",
-                                                    color = Color.White,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Preset 3: Restaurant Owner
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFFF0FDF4),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .clickable {
-                                                loginIdentifier = "01012345678"
-                                                loginPassword = "123456"
-                                                loginError = null
-                                            }
-                                            .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(10.dp))
-                                            .padding(10.dp)
-                                            .testTag("quick_fill_restaurant")
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(text = "👨‍🍳", fontSize = 20.sp)
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "حساب مطعم (كشري أبو طارق)",
-                                                        fontWeight = FontWeight.Bold,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        color = Color(0xFF166534)
-                                                    )
-                                                    Text(
-                                                        text = "01012345678 • وسط البلد",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = Color(0xFF15803D)
-                                                    )
-                                                }
-                                            }
-                                            Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = Color(0xFF16A34A)
-                                            ) {
-                                                Text(
-                                                    text = "شاشة المطعم 🍽️",
-                                                    color = Color.White,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                                                )
-                                            }
-                                        }
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                loginLoading = true
+                                val res = onLogin(loginIdentifier, loginPassword)
+                                loginLoading = false
+                                if (res !is LoginResult.Success) {
+                                    loginError = when (res) {
+                                        is LoginResult.Error -> res.message
+                                        else -> "فشل تسجيل الدخول"
                                     }
                                 }
                             }
+                        },
+                        enabled = !loginLoading && loginIdentifier.isNotBlank() && loginPassword.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MinyooOrangePrimary,
+                            disabledContainerColor = Color(0xFFE5E7EB)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("login_submit_button")
+                    ) {
+                        if (loginLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Text(
+                                text = "تسجيل الدخول",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
+                }
+            } else {
+                // ==========================================
+                // REGISTER MODE (Secondary role selector at bottom)
+                // ==========================================
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Secondary Role Selector at bottom/top of registration
+                    Text(
+                        text = "اختر نوع الحساب الجديد:",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827)
+                    )
 
-                    MainAuthTab.REGISTER -> {
-                        // ==========================================
-                        // REGISTRATION FORM (Customer or Restaurant only)
-                        // ==========================================
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Customer Option
+                        val isCust = registerRole == RegisterRoleType.CUSTOMER
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isCust) Color(0xFFFFF7ED) else Color(0xFFF9FAFB),
+                            border = BorderStroke(1.5.dp, if (isCust) MinyooOrangePrimary else Color(0xFFE5E7EB)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { registerRole = RegisterRoleType.CUSTOMER }
+                                .testTag("reg_choice_customer")
                         ) {
-                            // Sub-choice: Customer vs Restaurant
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (registerChoice == RegisterRoleChoice.CUSTOMER) MinyooOrangeContainer else MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(
-                                        1.5.dp,
-                                        if (registerChoice == RegisterRoleChoice.CUSTOMER) MinyooOrangePrimary else Color(0xFFCBD5E1)
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .clickable { registerChoice = RegisterRoleChoice.CUSTOMER }
-                                        .testTag("reg_choice_customer")
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(text = "🛍️", fontSize = 26.sp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "تسجيل كعميل",
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = if (registerChoice == RegisterRoleChoice.CUSTOMER) MinyooOrangeDark else MinyooCharcoal
-                                        )
-                                        Text(
-                                            text = "طلب وتوصيل طعام",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MinyooSlateLight
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (registerChoice == RegisterRoleChoice.RESTAURANT) Color(0xFFFEF3C7) else MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(
-                                        1.5.dp,
-                                        if (registerChoice == RegisterRoleChoice.RESTAURANT) Color(0xFFD97706) else Color(0xFFCBD5E1)
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .clickable { registerChoice = RegisterRoleChoice.RESTAURANT }
-                                        .testTag("reg_choice_restaurant")
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(14.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(text = "👨‍🍳", fontSize = 26.sp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "انضمام مطعم",
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = if (registerChoice == RegisterRoleChoice.RESTAURANT) Color(0xFF92400E) else MinyooCharcoal
-                                        )
-                                        Text(
-                                            text = "استقبال وإدارة طلبات",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MinyooSlateLight
-                                        )
-                                    }
-                                }
+                                Text(text = "🛒", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "عميل",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCust) MinyooOrangePrimary else Color(0xFF374151)
+                                )
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            if (registerChoice == RegisterRoleChoice.CUSTOMER) {
-                                // ------------------------------------
-                                // CUSTOMER REGISTRATION FORM
-                                // ------------------------------------
-                                Card(
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(1.dp, MinyooCardBorder, RoundedCornerShape(20.dp))
-                                ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
-                                        Text(
-                                            text = "بيانات حساب العميل 🛍️",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MinyooCharcoal
-                                        )
-                                        Text(
-                                            text = "سجل حسابك لتصفح مئات المطاعم والعروض الحصرية",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MinyooSlateLight,
-                                            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
-                                        )
-
-                                        if (custError != null) {
-                                            Surface(
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = Color(0xFFFEE2E2),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(bottom = 12.dp)
-                                            ) {
-                                                Text(
-                                                    text = custError ?: "",
-                                                    color = Color(0xFFDC2626),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    modifier = Modifier.padding(8.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Name
-                                        Text("الاسم بالكامل", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = custName,
-                                            onValueChange = { custName = it; custError = null },
-                                            placeholder = { Text("مثال: أحمد مصطفى") },
-                                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("cust_reg_name")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Phone
-                                        Text("رقم الموبايل (المصري)", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = custPhone,
-                                            onValueChange = { custPhone = it; custError = null },
-                                            placeholder = { Text("010xxxxxxxx أو 011xxxxxxxx") },
-                                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("cust_reg_phone")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Password
-                                        Text("كلمة المرور الجديدة", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = custPass,
-                                            onValueChange = { custPass = it; custError = null },
-                                            placeholder = { Text("أدخل كلمة مرور الحساب") },
-                                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            trailingIcon = {
-                                                IconButton(onClick = { isCustPassVisible = !isCustPassVisible }) {
-                                                    Icon(
-                                                        imageVector = if (isCustPassVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                        contentDescription = null
-                                                    )
-                                                }
-                                            },
-                                            visualTransformation = if (isCustPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("cust_reg_pass")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // City / Area
-                                        Text("المدينة أو المنطقة السكنية", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = custCity,
-                                            onValueChange = { custCity = it },
-                                            placeholder = { Text("مثال: القاهرة - المعادي") },
-                                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("cust_reg_city")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // Quick City Chips
-                                        Text("اختيار سريع للمنطقة:", style = MaterialTheme.typography.labelSmall, color = MinyooSlateLight)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            items(popularCities) { city ->
-                                                val isSelected = custCity == city
-                                                Surface(
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    color = if (isSelected) MinyooOrangePrimary else Color(0xFFF1F5F9),
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(20.dp))
-                                                        .clickable { custCity = city }
-                                                ) {
-                                                    Text(
-                                                        text = city,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = if (isSelected) Color.White else MinyooCharcoal,
-                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(20.dp))
-
-                                        Button(
-                                            onClick = {
-                                                if (custName.isBlank()) {
-                                                    custError = "يرجى كتابة الاسم بالكامل"
-                                                    return@Button
-                                                }
-                                                if (custPhone.isBlank() || custPhone.length < 9) {
-                                                    custError = "يرجى إدخال رقم هاتف صالح"
-                                                    return@Button
-                                                }
-                                                if (custPass.isBlank()) {
-                                                    custError = "يرجى إدخال كلمة مرور"
-                                                    return@Button
-                                                }
-                                                onCustomerRegistered(custName, custPhone, custPass, custCity)
-                                            },
-                                            shape = RoundedCornerShape(14.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = MinyooOrangePrimary),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(50.dp)
-                                                .testTag("cust_reg_submit")
-                                        ) {
-                                            Text("إنشاء حساب العميل والبدء 🛒", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                                        }
-                                    }
-                                }
-                            } else {
-                                // ------------------------------------
-                                // RESTAURANT REGISTRATION FORM
-                                // ------------------------------------
-                                Card(
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(1.dp, MinyooCardBorder, RoundedCornerShape(20.dp))
-                                ) {
-                                    Column(modifier = Modifier.padding(20.dp)) {
-                                        Text(
-                                            text = "انضمام كشريك مطعم 👨‍🍳",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MinyooCharcoal
-                                        )
-                                        Text(
-                                            text = "سجل مطعمك في منصة لقمة وابدأ في استقبال وتجهيز طلبات الزبائن فور اعتماد الإدارة",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MinyooSlateLight,
-                                            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
-                                        )
-
-                                        if (restError != null) {
-                                            Surface(
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = Color(0xFFFEE2E2),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(bottom = 12.dp)
-                                            ) {
-                                                Text(
-                                                    text = restError ?: "",
-                                                    color = Color(0xFFDC2626),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    modifier = Modifier.padding(8.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Restaurant Name
-                                        Text("اسم المطعم التجاري", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = restName,
-                                            onValueChange = { restName = it; restError = null },
-                                            placeholder = { Text("مثال: شاورما الريم أو بيتزا كينج") },
-                                            leadingIcon = { Icon(Icons.Default.Storefront, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("rest_reg_name")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Phone
-                                        Text("رقم هاتف الإدارة والطلبات", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = restPhone,
-                                            onValueChange = { restPhone = it; restError = null },
-                                            placeholder = { Text("010xxxxxxxx أو 012xxxxxxxx") },
-                                            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("rest_reg_phone")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Password
-                                        Text("كلمة المرور للوحة التحكم", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = restPass,
-                                            onValueChange = { restPass = it; restError = null },
-                                            placeholder = { Text("أدخل كلمة مرور قوية") },
-                                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            trailingIcon = {
-                                                IconButton(onClick = { isRestPassVisible = !isRestPassVisible }) {
-                                                    Icon(
-                                                        imageVector = if (isRestPassVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                        contentDescription = null
-                                                    )
-                                                }
-                                            },
-                                            visualTransformation = if (isRestPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("rest_reg_pass")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // City / Area
-                                        Text("الفرع والمنطقة", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        OutlinedTextField(
-                                            value = restCity,
-                                            onValueChange = { restCity = it },
-                                            placeholder = { Text("مثال: القاهرة - التجمع الخامس") },
-                                            leadingIcon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = MinyooOrangePrimary) },
-                                            singleLine = true,
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.fillMaxWidth().testTag("rest_reg_city")
-                                        )
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Cuisine Choice
-                                        Text("نوع وتصنيف المطبخ الرئيسي", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            items(cuisinesList) { cui ->
-                                                val isSelected = restCuisine == cui
-                                                Surface(
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    color = if (isSelected) Color(0xFFD97706) else Color(0xFFF1F5F9),
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(20.dp))
-                                                        .clickable { restCuisine = cui }
-                                                ) {
-                                                    Text(
-                                                        text = cui,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = if (isSelected) Color.White else MinyooCharcoal,
-                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Logo Icon Selection
-                                        Text("أيقونة وشعار المطعم", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            items(logoIcons) { iconEmoji ->
-                                                val isSelected = restLogoIcon == iconEmoji
-                                                Surface(
-                                                    shape = CircleShape,
-                                                    color = if (isSelected) MinyooOrangePrimary else Color(0xFFF1F5F9),
-                                                    border = BorderStroke(
-                                                        1.5.dp,
-                                                        if (isSelected) MinyooOrangePrimary else Color(0xFFE2E8F0)
-                                                    ),
-                                                    modifier = Modifier
-                                                        .size(44.dp)
-                                                        .clip(CircleShape)
-                                                        .clickable { restLogoIcon = iconEmoji }
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text(text = iconEmoji, fontSize = 20.sp)
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(20.dp))
-
-                                        Button(
-                                            onClick = {
-                                                if (restName.isBlank()) {
-                                                    restError = "يرجى كتابة اسم المطعم"
-                                                    return@Button
-                                                }
-                                                if (restPhone.isBlank() || restPhone.length < 9) {
-                                                    restError = "يرجى إدخال رقم هاتف صالح للإدارة"
-                                                    return@Button
-                                                }
-                                                if (restPass.isBlank()) {
-                                                    restError = "يرجى إدخال كلمة مرور"
-                                                    return@Button
-                                                }
-                                                val data = RestaurantRegistrationData(
-                                                    restaurantName = restName.trim(),
-                                                    phone = restPhone.trim(),
-                                                    cityArea = restCity.trim(),
-                                                    cuisine = restCuisine,
-                                                    logoIcon = restLogoIcon,
-                                                    minOrder = restMinOrder.toDoubleOrNull() ?: 50.0,
-                                                    deliveryTimeMinutes = restPrepTime.toIntOrNull() ?: 30,
-                                                    status = RestaurantStatus.PENDING
-                                                )
-                                                onRestaurantRegistered(data, restPass)
-                                            },
-                                            shape = RoundedCornerShape(14.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(50.dp)
-                                                .testTag("rest_reg_submit")
-                                        ) {
-                                            Text("إرسال طلب انضمام المطعم 📋", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                                        }
-                                    }
-                                }
+                        // Restaurant Option
+                        val isRest = registerRole == RegisterRoleType.RESTAURANT
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isRest) Color(0xFFF0FDF4) else Color(0xFFF9FAFB),
+                            border = BorderStroke(1.5.dp, if (isRest) Color(0xFF16A34A) else Color(0xFFE5E7EB)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { registerRole = RegisterRoleType.RESTAURANT }
+                                .testTag("reg_choice_restaurant")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(text = "🏪", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "مطعم",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isRest) Color(0xFF16A34A) else Color(0xFF374151)
+                                )
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                        // Courier Option
+                        val isCourier = registerRole == RegisterRoleType.COURIER
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isCourier) Color(0xFFF3E8FF) else Color(0xFFF9FAFB),
+                            border = BorderStroke(1.5.dp, if (isCourier) Color(0xFF9333EA) else Color(0xFFE5E7EB)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { registerRole = RegisterRoleType.COURIER }
+                                .testTag("reg_choice_courier")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(text = "🛵", fontSize = 16.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "طيار",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCourier) Color(0xFF9333EA) else Color(0xFF374151)
+                                )
+                            }
+                        }
+                    }
 
-                            // Security Notice: Admin accounts are managed directly from DB
-                            Surface(
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Registration Form based on selected role
+                    if (registerRole == RegisterRoleType.RESTAURANT) {
+                        // Restaurant Register Form
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = restName,
+                                onValueChange = { restName = it; restError = null },
+                                placeholder = { Text("اسم المطعم أو البراند", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFF1F5F9),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Security,
-                                        contentDescription = null,
-                                        tint = MinyooSlateLight,
-                                        modifier = Modifier.size(20.dp)
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF16A34A),
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("rest_reg_name")
+                            )
+
+                            OutlinedTextField(
+                                value = restPhone,
+                                onValueChange = { restPhone = it; restError = null },
+                                placeholder = { Text("رقم هاتف المطعم للتواصل", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF16A34A),
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("rest_reg_phone")
+                            )
+
+                            OutlinedTextField(
+                                value = restPass,
+                                onValueChange = { restPass = it; restError = null },
+                                placeholder = { Text("كلمة المرور لإدارة المطعم", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                                visualTransformation = if (isRestPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { isRestPassVisible = !isRestPassVisible }) {
+                                        Icon(
+                                            imageVector = if (isRestPassVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                            contentDescription = null,
+                                            tint = Color(0xFF6B7280)
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF16A34A),
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("rest_reg_pass")
+                            )
+
+                            Text(text = "رمز أو أيقونة المطعم", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(logoIcons) { icon ->
+                                    val isSelected = restLogoIcon == icon
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isSelected) Color(0xFFDCFCE7) else Color(0xFFF3F4F6),
+                                        border = if (isSelected) BorderStroke(2.dp, Color(0xFF16A34A)) else null,
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(CircleShape)
+                                            .clickable { restLogoIcon = icon }
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(text = icon, fontSize = 20.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text(text = "نوع المأكولات والتصنيف", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(cuisinesList) { cuisine ->
+                                    val isSelected = restCuisine == cuisine
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (isSelected) Color(0xFF16A34A) else Color(0xFFF3F4F6),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .clickable { restCuisine = cuisine }
+                                    ) {
+                                        Text(
+                                            text = cuisine,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Color.White else Color(0xFF374151),
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    if (restName.isBlank() || restPhone.isBlank() || restPass.isBlank()) {
+                                        restError = "يرجى ملء جميع الحقول المطلوبة للمطعم"
+                                        return@Button
+                                    }
+                                    restLoading = true
+                                    val regData = RestaurantRegistrationData(
+                                        restaurantName = restName,
+                                        phone = restPhone,
+                                        cityArea = restCity,
+                                        cuisine = restCuisine,
+                                        logoIcon = restLogoIcon,
+                                        minOrder = restMinOrder.toDoubleOrNull() ?: 40.0,
+                                        deliveryTimeMinutes = restPrepTime.toIntOrNull() ?: 30
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    val res = onRestaurantRegistered(regData, restPass)
+                                    restLoading = false
+                                    if (res !is LoginResult.Success) {
+                                        restError = when (res) {
+                                            is LoginResult.Error -> res.message
+                                            else -> "فشل تسجيل المطعم"
+                                        }
+                                    }
+                                },
+                                enabled = !restLoading,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                modifier = Modifier.fillMaxWidth().height(52.dp).testTag("rest_reg_submit")
+                            ) {
+                                if (restLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
+                                    Text(text = "تسجيل مطعم جديد للانضمام", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                                }
+                            }
+                        }
+                    } else {
+                        // Customer or Courier Register Form
+                        val isCourier = registerRole == RegisterRoleType.COURIER
+                        val brandColor = if (isCourier) Color(0xFF9333EA) else MinyooOrangePrimary
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = regName,
+                                onValueChange = { regName = it; regError = null },
+                                placeholder = { Text("الاسم بالكامل", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = brandColor,
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("cust_reg_name")
+                            )
+
+                            OutlinedTextField(
+                                value = regPhone,
+                                onValueChange = { regPhone = it; regError = null },
+                                placeholder = { Text("رقم الهاتف (مثال: 01012345678)", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = brandColor,
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("cust_reg_phone")
+                            )
+
+                            OutlinedTextField(
+                                value = regPass,
+                                onValueChange = { regPass = it; regError = null },
+                                placeholder = { Text("كلمة المرور (6 أحرف على الأقل)", color = Color(0xFF9CA3AF)) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(color = Color(0xFF111827), fontWeight = FontWeight.Medium),
+                                visualTransformation = if (isRegPassVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { isRegPassVisible = !isRegPassVisible }) {
+                                        Icon(
+                                            imageVector = if (isRegPassVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                            contentDescription = null,
+                                            tint = Color(0xFF6B7280)
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = brandColor,
+                                    unfocusedBorderColor = Color(0xFFD1D5DB),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("cust_reg_pass")
+                            )
+
+                            Text(text = "المدينة والمنطقة", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(popularCities) { city ->
+                                    val isSelected = regCity == city
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (isSelected) brandColor else Color(0xFFF3F4F6),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .clickable { regCity = city }
+                                    ) {
+                                        Text(
+                                            text = city,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) Color.White else Color(0xFF374151),
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    if (regName.isBlank() || regPhone.isBlank() || regPass.isBlank()) {
+                                        regError = "يرجى ملء جميع الحقول المطلوبة"
+                                        return@Button
+                                    }
+                                    regLoading = true
+                                    val res = if (isCourier) {
+                                        onCourierRegistered(regName, regPhone, regPass, regCity)
+                                    } else {
+                                        onCustomerRegistered(regName, regPhone, regPass, regCity)
+                                    }
+                                    regLoading = false
+                                    if (res !is LoginResult.Success) {
+                                        regError = when (res) {
+                                            is LoginResult.Error -> res.message
+                                            else -> "فشل التسجيل"
+                                        }
+                                    }
+                                },
+                                enabled = !regLoading,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = brandColor),
+                                modifier = Modifier.fillMaxWidth().height(52.dp).testTag("cust_reg_submit")
+                            ) {
+                                if (regLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                                } else {
                                     Text(
-                                        text = "حسابات الإدارة المركزية (Admin) يتم إنشاؤها وتعيين صلاحياتها يدويًا من قاعدة البيانات مباشرة لضمان أعلى مستويات الأمان.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MinyooSlateMuted
+                                        text = if (isCourier) "إنشاء حساب طيار توصيل جديد" else "إنشاء حساب عميل جديد",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = Color.White
                                     )
                                 }
                             }
@@ -1183,8 +741,6 @@ fun AuthOnboardingScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

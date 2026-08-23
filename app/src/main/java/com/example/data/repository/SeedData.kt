@@ -53,15 +53,15 @@ object SeedData {
     )
 
     val categories = listOf(
-        "الكل" to "🍽️",
-        "برجر" to "🍔",
-        "كشري ومصري" to "🍲",
-        "مشويات وكباب" to "🍗",
-        "شاورما وساندوتشات" to "🌯",
-        "بيتزا وفطير" to "🍕",
-        "كريب ووافل" to "🥞",
-        "حلويات وآيس كريم" to "🍨",
-        "كافيهات وعصائر" to "☕"
+        "الكل",
+        "برجر",
+        "كشري ومصري",
+        "مشويات وكباب",
+        "شاورما وساندوتشات",
+        "بيتزا وفطير",
+        "كريب ووافل",
+        "حلويات وآيس كريم",
+        "كافيهات وعصائر"
     )
 
     val restaurants = listOf(
@@ -129,7 +129,7 @@ object SeedData {
             deliveryFee = 15.0,
             minOrder = 35.0,
             area = "كل فروع القاهرة والجيزة",
-            discountBadge = "الأكثر طلباً وترند مصر 🔥",
+            discountBadge = "الأكثر طلباً وترند مصر",
             isOpen = true,
             isFeatured = true
         ),
@@ -709,21 +709,21 @@ object SeedData {
     val sampleNotifications = listOf(
         NotificationItem(
             id = "notif_1",
-            title = "كود خصم جديد نزل في حسابك! 🎁",
+            title = "كود خصم جديد نزل في حسابك!",
             body = "استخدم كود WELD_BALAD واحصل على خصم 30 جنيه على وجبتك المفضلة اليوم.",
             timeAgo = "منذ 15 دقيقة",
             isRead = false
         ),
         NotificationItem(
             id = "notif_2",
-            title = "عروض الغدا ولعت مع MINYOO 🍔",
+            title = "عروض الغدا المميزة مع لقمة",
             body = "خصومات تصل إلى 40% على جميع مطاعم البرجر والشاورما في منطقتك.",
             timeAgo = "منذ ساعة",
             isRead = false
         ),
         NotificationItem(
             id = "notif_3",
-            title = "طلبك السابق تم تسليمه بنجاح ✅",
+            title = "طلبك السابق تم تسليمه بنجاح",
             body = "شكراً لطلبك من كشري أبو طارق. شاركنا رأيك في تجربة التوصيل وجودة الطعام.",
             timeAgo = "أمس",
             isRead = true

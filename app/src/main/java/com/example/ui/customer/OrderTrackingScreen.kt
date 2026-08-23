@@ -108,18 +108,21 @@ fun OrderTrackingScreen(
                             .padding(18.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = when (order.status) {
-                                OrderStatus.PLACED -> "⏳"
-                                OrderStatus.CONFIRMED -> "👨‍🍳"
-                                OrderStatus.PREPARING -> "🍳"
-                                OrderStatus.COURIER_ASSIGNED -> "🛵"
-                                OrderStatus.PICKED_UP -> "📦"
-                                OrderStatus.OUT_FOR_DELIVERY -> "🚀"
-                                OrderStatus.DELIVERED -> "🎉"
-                                OrderStatus.CANCELLED -> "❌"
-                            },
-                            fontSize = 36.sp
+                        val statusIcon = when (order.status) {
+                            OrderStatus.PLACED -> Icons.Filled.Schedule
+                            OrderStatus.CONFIRMED -> Icons.Filled.Restaurant
+                            OrderStatus.PREPARING -> Icons.Filled.Restaurant
+                            OrderStatus.COURIER_ASSIGNED -> Icons.Filled.DeliveryDining
+                            OrderStatus.PICKED_UP -> Icons.Filled.ShoppingBag
+                            OrderStatus.OUT_FOR_DELIVERY -> Icons.Filled.LocalShipping
+                            OrderStatus.DELIVERED -> Icons.Filled.CheckCircle
+                            OrderStatus.CANCELLED -> Icons.Filled.Cancel
+                        }
+                        Icon(
+                            imageVector = statusIcon,
+                            contentDescription = null,
+                            tint = if (order.status == OrderStatus.DELIVERED) MinyooGreenDark else MinyooOrangePrimary,
+                            modifier = Modifier.size(36.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -171,7 +174,12 @@ fun OrderTrackingScreen(
                                 modifier = Modifier.size(52.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Text(text = "🛵", fontSize = 28.sp)
+                                    Icon(
+                                        imageVector = Icons.Default.TwoWheeler,
+                                        contentDescription = null,
+                                        tint = MinyooOrangePrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
                             }
 
@@ -347,7 +355,7 @@ fun OrderTrackingScreen(
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = "⚡ محاكاة دورة حياة الطلب الحية:",
+                                text = "محاكاة دورة حياة الطلب الحية:",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -360,7 +368,7 @@ fun OrderTrackingScreen(
                                     .fillMaxWidth()
                                     .testTag("simulate_next_order_status_btn")
                             ) {
-                                Text("تقديم حالة الطلب للمرحلة التالية ⏩", fontWeight = FontWeight.Bold)
+                                Text("تقديم حالة الطلب للمرحلة التالية", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -381,7 +389,7 @@ fun OrderTrackingScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "كيف كانت تجربتك مع MINYOO؟ ⭐",
+                                text = "كيف كانت تجربتك معنا؟",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MinyooGreenDark
@@ -390,7 +398,7 @@ fun OrderTrackingScreen(
 
                             if (reviewSubmitted) {
                                 Text(
-                                    text = "شكراً لمشاركتك رأيك معنا! تم حفظ تقييمك بنجاح ❤️",
+                                    text = "شكراً لمشاركتك رأيك معنا! تم حفظ تقييمك بنجاح",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MinyooGreenDark,
                                     fontWeight = FontWeight.Bold
