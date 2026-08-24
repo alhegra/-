@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "637721876771",
+    "project_id": "lo2ma-b6450",
+    "storage_bucket": "lo2ma-b6450.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637721876771:android:9a4eaf4f948b49c1225496",
+        "android_client_info": {
+          "package_name": "com.aistudio.minyoo.egdelivery"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFfZlGrrcA2GF1VMRy6gs9oThPTei_knE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
